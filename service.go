@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"strings"
+	"strconv"
+	"syscall"
 )
 
 var OrgVarlinkService = `# The Varlink Service Interface is provided by every varlink service. It
@@ -190,6 +192,30 @@ func (this Service) HandleMessage(writer *Writer, request []byte) error {
 	return method(iface, call, writer)
 }
 
+func activationListener() net.Listener {
+	defer os.Unsetenv("LISTEN_PID")
+	defer os.Unsetenv("LISTEN_FDS")
+
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err != nil || pid != os.Getpid() {
+		return nil
+	}
+
+	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if err != nil || nfds != 1 {
+		return nil
+	}
+
+	syscall.CloseOnExec(3)
+
+	file := os.NewFile(uintptr(3), "LISTEN_FD_3")
+	listener, err := net.FileListener(file)
+	if err != nil {
+		return nil
+	}
+	return listener
+}
+
 func (this Service) Run(address string) error {
 	words := strings.SplitN(address, ":", 2)
 	protocol := words[0]
@@ -214,7 +240,11 @@ func (this Service) Run(address string) error {
 		return fmt.Errorf("Unknown protocol")
 	}
 
-	l, _ := net.Listen(protocol, addr)
+	var l net.Listener
+	l = activationListener()
+	if l == nil {
+		l, _ = net.Listen(protocol, addr)
+	}
 	defer l.Close()
 
 	handleConnection := func(conn net.Conn) {
