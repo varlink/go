@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-var OrgVarlinkService = 
-`# The Varlink Service Interface is provided by every varlink service. It
+var OrgVarlinkService = `# The Varlink Service Interface is provided by every varlink service. It
 # describes the service and the interfaces it implements.
 interface org.varlink.service
 
@@ -88,8 +87,15 @@ func getInterfaceDescription(iface *Interface, call ServerCall, out *Writer) err
 		return InvalidParameter("parameters", out)
 	}
 
+	this, _ := (*iface).(Service)
+	iface, ok := this.services[in.Name]
+
+	if !ok {
+		return InvalidParameter("Name", out)
+	}
+
 	return out.Reply(ServerReply{
-		Parameters: ReplyParameters{OrgVarlinkService},
+		Parameters: ReplyParameters{(*iface).Get().Description},
 	})
 }
 
