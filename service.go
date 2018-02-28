@@ -230,11 +230,7 @@ func (this Service) Run(address string) error {
 	}
 
 	for {
-		conn, err := l.Accept()
-		if err == nil {
-			conn.Close()
-			return err
-		}
+		conn, _ := l.Accept()
 		go handleConnection(conn)
 	}
 }
