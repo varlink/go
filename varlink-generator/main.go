@@ -16,6 +16,26 @@ func help(name string) {
 	os.Exit(1)
 }
 
+func writeType(b *bytes.Buffer, t *varlink.Type) {
+	switch t.Kind {
+	case varlink.Bool:
+		b.WriteString("bool")
+
+	case varlink.Int:
+		b.WriteString("int64")
+
+	case varlink.Float:
+		b.WriteString("float64")
+
+	case varlink.String:
+		b.WriteString("string")
+
+	case varlink.Array:
+		b.WriteString("[]")
+		writeType(b, t.ElementType)
+	}
+}
+
 func main() {
 	if len(os.Args) < 3 {
 		help(os.Args[0])
@@ -36,22 +56,7 @@ func main() {
 			for _, field := range alias.Type.Fields {
 				name := strings.Title(field.Name)
 				b.WriteString("\t" + name + " ")
-				switch field.Type.Kind {
-				case varlink.Bool:
-					b.WriteString("bool")
-
-				case varlink.Int:
-					b.WriteString("int64")
-
-				case varlink.Float:
-					b.WriteString("float64")
-
-				case varlink.String:
-					b.WriteString("string")
-
-				case varlink.Array:
-					b.WriteString("[]")
-				}
+				writeType(&b, field.Type)
 				b.WriteString(" `json:\"" + field.Name + "\"`\n")
 			}
 			b.WriteString("}\n")
