@@ -55,8 +55,8 @@ type MethodT struct {
 }
 
 type ErrorType struct {
-	Name        string
-	Type        *Type
+	Name string
+	Type *Type
 }
 
 type parser struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -30,7 +31,31 @@ func main() {
 		switch member.(type) {
 		case *varlink.TypeAlias:
 			alias := member.(*varlink.TypeAlias)
-			fmt.Println("T " + alias.Name)
+			var b bytes.Buffer
+			b.WriteString("type " + alias.Name + " {\n")
+			for _, field := range alias.Type.Fields {
+				name := strings.Title(field.Name)
+				b.WriteString("\t" + name + " ")
+				switch field.Type.Kind {
+				case varlink.Bool:
+					b.WriteString("bool")
+
+				case varlink.Int:
+					b.WriteString("int64")
+
+				case varlink.Float:
+					b.WriteString("float64")
+
+				case varlink.String:
+					b.WriteString("string")
+
+				case varlink.Array:
+					b.WriteString("[]")
+				}
+				b.WriteString(" `json:\"" + field.Name + "\"`\n")
+			}
+			b.WriteString("}\n")
+			fmt.Println(b.String())
 
 		case *varlink.Method:
 			method := member.(*varlink.MethodT)
@@ -56,9 +81,9 @@ func main() {
 	out += "var " + name + " = \n"
 	out += "`" + intf + "\n`"
 	out += "\n"
-	filename := dir+"/"+name+".go"
+	filename := dir + "/" + name + ".go"
 	err = ioutil.WriteFile(filename, []byte(out), 0660)
 	if err != nil {
-		fmt.Printf("Error reading file '%s': %s\n", filename, err)		
+		fmt.Printf("Error reading file '%s': %s\n", filename, err)
 	}
 }
