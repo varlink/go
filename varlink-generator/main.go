@@ -36,6 +36,17 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 	}
 }
 
+func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
+	b.WriteString("type " + name + " {\n")
+	for _, field := range t.Fields {
+		name := strings.Title(field.Name)
+		b.WriteString("\t" + name + " ")
+		writeType(b, field.Type)
+		b.WriteString(" `json:\"" + field.Name + "\"`\n")
+	}
+	b.WriteString("}\n\n")
+}
+
 func main() {
 	if len(os.Args) < 3 {
 		help(os.Args[0])
@@ -47,30 +58,24 @@ func main() {
 	intf := strings.TrimRight(string(file), "\n")
 	iface := varlink.NewInterface(intf)
 	fmt.Println("Writing: " + iface.Name)
+	var b bytes.Buffer
 	for _, member := range iface.Members {
 		switch member.(type) {
 		case *varlink.TypeAlias:
 			alias := member.(*varlink.TypeAlias)
-			var b bytes.Buffer
-			b.WriteString("type " + alias.Name + " {\n")
-			for _, field := range alias.Type.Fields {
-				name := strings.Title(field.Name)
-				b.WriteString("\t" + name + " ")
-				writeType(&b, field.Type)
-				b.WriteString(" `json:\"" + field.Name + "\"`\n")
-			}
-			b.WriteString("}\n")
-			fmt.Println(b.String())
+			writeTypeDecl(&b, alias.Name, alias.Type)
 
-		case *varlink.Method:
+		case *varlink.MethodT:
 			method := member.(*varlink.MethodT)
-			fmt.Println("M " + method.Name)
+			writeTypeDecl(&b, method.Name + "_CallParameters", method.In)
+			writeTypeDecl(&b, method.Name + "_ReplyParameters", method.Out)
 
 		case *varlink.ErrorType:
 			err := member.(*varlink.ErrorType)
 			fmt.Println("E " + err.Name)
 		}
 	}
+	fmt.Println(b.String())
 
 	pkg := os.Args[1]
 	name := path.Base(os.Args[2])
