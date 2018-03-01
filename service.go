@@ -271,7 +271,10 @@ func (this *Service) Run(address string) error {
 	}
 
 	for !this.quit {
-		conn, _ := l.Accept()
+		conn, err := l.Accept()
+		if err != nil && !this.quit {
+			return err
+		}
 		go handleConnection(conn)
 	}
 
