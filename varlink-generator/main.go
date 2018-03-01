@@ -44,7 +44,7 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 		return
 	}
 
-	b.WriteString("type " + name + " {\n")
+	b.WriteString("type " + name + " struct {\n")
 	for _, field := range t.Fields {
 		name := strings.Title(field.Name)
 		b.WriteString("\t" + name + " ")
@@ -72,7 +72,6 @@ func main() {
 
 	var b bytes.Buffer
 	b.WriteString("package " + pkgname + "\n\n")
-	b.WriteString("Description = `\n" + iface.Description + "\n`\n\n")
 
 	for _, member := range iface.Members {
 		switch member.(type) {
@@ -90,6 +89,8 @@ func main() {
 			writeTypeDecl(&b, err.Name+"_Error", err.Type)
 		}
 	}
+
+	b.WriteString("const Description string = `\n" + iface.Description + "\n`\n\n")
 
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
 	err = ioutil.WriteFile(filename, b.Bytes(), 0660)
