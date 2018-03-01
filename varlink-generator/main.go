@@ -54,12 +54,24 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 	b.WriteString("}\n\n")
 }
 
-func writeGenerator(iface *varlink.InterfaceT) {
-	var b bytes.Buffer
+func main() {
+	if len(os.Args) < 2 {
+		help(os.Args[0])
+	}
 
+	varlinkFile := os.Args[1]
+
+	file, err := ioutil.ReadFile(varlinkFile)
+	if err != nil {
+		fmt.Printf("Error reading file '%s': %s\n", varlinkFile, err)
+	}
+
+	description := strings.TrimRight(string(file), "\n")
+	iface := varlink.NewInterface(description)
 	pkgname := strings.Replace(iface.Name, ".", "", -1)
-	b.WriteString("package " + pkgname + "\n\n")
 
+	var b bytes.Buffer
+	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString("Description = `\n" + iface.Description + "\n`\n\n")
 
 	for _, member := range iface.Members {
@@ -79,40 +91,9 @@ func writeGenerator(iface *varlink.InterfaceT) {
 		}
 	}
 
-	fmt.Println(b.String())
-}
-
-func main() {
-	if len(os.Args) < 3 {
-		help(os.Args[0])
-	}
-
-	file, err := ioutil.ReadFile(os.Args[2])
+	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
+	err = ioutil.WriteFile(filename, b.Bytes(), 0660)
 	if err != nil {
-		fmt.Printf("Error reading file '%s': %s\n", os.Args[2], err)
-	}
-
-	intf := strings.TrimRight(string(file), "\n")
-	iface := varlink.NewInterface(intf)
-	writeGenerator(iface)
-
-	pkg := os.Args[1]
-	name := path.Base(os.Args[2])
-	dir := path.Dir(os.Args[2])
-
-	// Convert input file interface name to CamelCase
-	name = strings.TrimSuffix(name, ".varlink")
-	name = strings.Replace(name, ".", " ", -1)
-	name = strings.Title(name)
-	name = strings.Replace(name, " ", "", -1)
-
-	out := "package " + pkg + "\n\n"
-	out += "var " + name + " = \n"
-	out += "`" + intf + "\n`"
-	out += "\n"
-	filename := dir + "/" + name + ".go"
-	err = ioutil.WriteFile(filename, []byte(out), 0660)
-	if err != nil {
-		fmt.Printf("Error reading file '%s': %s\n", filename, err)
+		fmt.Printf("Error writing file '%s': %s\n", filename, err)
 	}
 }
