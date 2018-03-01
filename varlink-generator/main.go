@@ -90,7 +90,7 @@ func main() {
 		}
 	}
 
-	b.WriteString("const Description string = `\n" + iface.Description + "\n`\n\n")
+	b.WriteString("const InterfaceDescription string = `\n" + iface.Description + "\n`\n")
 
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
 	err = ioutil.WriteFile(filename, b.Bytes(), 0660)
