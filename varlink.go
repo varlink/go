@@ -5,16 +5,23 @@ import (
 	"encoding/json"
 )
 
-type Method func(*Interface, ServerCall, *Writer) error
+type Interface interface {
+	GetName() string
+	GetDescription() string
+	Handle(method string, in ServerCall, out *Writer) error
+}
 
 type InterfaceImpl struct {
 	Name        string
 	Description string
-	Methods     map[string]Method
 }
 
-type Interface interface {
-	Get() *InterfaceImpl
+func (this *InterfaceImpl) GetName() string {
+	return this.Name
+}
+
+func (this *InterfaceImpl) GetDescription() string {
+	return this.Description
 }
 
 type ServerCall struct {

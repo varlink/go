@@ -42,7 +42,7 @@ error MethodNotImplemented (method: string)
 error InvalidParameter (parameter: string)
 `
 
-func keyList(mymap *map[string]*Interface) []string {
+func keyList(mymap *map[string]Interface) []string {
 	keys := make([]string, len(*mymap))
 
 	i := 0
@@ -51,54 +51,6 @@ func keyList(mymap *map[string]*Interface) []string {
 		i++
 	}
 	return keys
-}
-
-func getInfo(iface *Interface, call ServerCall, out *Writer) error {
-	type ReplyParameters struct {
-		Vendor     string   `json:"vendor"`
-		Product    string   `json:"product"`
-		Version    string   `json:"version"`
-		URL        string   `json:"url"`
-		Interfaces []string `json:"interfaces"`
-	}
-
-	this, _ := (*iface).(Service)
-	return out.Reply(ServerReply{
-		Parameters: ReplyParameters{
-			Vendor:     this.vendor,
-			Product:    this.product,
-			Version:    this.version,
-			URL:        this.url,
-			Interfaces: keyList(&this.services),
-		},
-	})
-}
-
-func getInterfaceDescription(iface *Interface, call ServerCall, out *Writer) error {
-	type CallParameters struct {
-		Name string `json:"interface"`
-	}
-
-	type ReplyParameters struct {
-		InterfaceString string `json:"description"`
-	}
-
-	var in CallParameters
-	err := json.Unmarshal(*call.Parameters, &in)
-	if err != nil {
-		return InvalidParameter("parameters", out)
-	}
-
-	this, _ := (*iface).(Service)
-	iface, ok := this.services[in.Name]
-
-	if !ok {
-		return InvalidParameter("Name", out)
-	}
-
-	return out.Reply(ServerReply{
-		Parameters: ReplyParameters{(*iface).Get().Description},
-	})
 }
 
 func InterfaceNotFound(name string, out *Writer) error {
@@ -142,24 +94,77 @@ func InvalidParameter(parameter string, out *Writer) error {
 }
 
 type Service struct {
-	vendor    string
-	product   string
-	version   string
-	url       string
-	services  map[string]*Interface
-	myservice InterfaceImpl
+	InterfaceImpl
+	vendor   string
+	product  string
+	version  string
+	url      string
+	services map[string]Interface
+	quit     bool
 }
 
-func (this Service) Get() *InterfaceImpl {
-	return &this.myservice
+func (this *Service) getInfo(call ServerCall, out *Writer) error {
+	type ReplyParameters struct {
+		Vendor     string   `json:"vendor"`
+		Product    string   `json:"product"`
+		Version    string   `json:"version"`
+		URL        string   `json:"url"`
+		Interfaces []string `json:"interfaces"`
+	}
+
+	return out.Reply(ServerReply{
+		Parameters: ReplyParameters{
+			Vendor:     this.vendor,
+			Product:    this.product,
+			Version:    this.version,
+			URL:        this.url,
+			Interfaces: keyList(&this.services),
+		},
+	})
 }
 
-func (this Service) registerInterface(iface Interface) {
-	service := iface.Get()
-	this.services[service.Name] = &iface
+func (this *Service) getInterfaceDescription(call ServerCall, out *Writer) error {
+	type CallParameters struct {
+		Name string `json:"interface"`
+	}
+
+	type ReplyParameters struct {
+		InterfaceString string `json:"description"`
+	}
+
+	var in CallParameters
+	err := json.Unmarshal(*call.Parameters, &in)
+	if err != nil {
+		return InvalidParameter("parameters", out)
+	}
+
+	ifacep, ok := this.services[in.Name]
+	ifacen := ifacep.(Interface)
+	if !ok {
+		return InvalidParameter("Name", out)
+	}
+
+	return out.Reply(ServerReply{
+		Parameters: ReplyParameters{ifacen.GetDescription()},
+	})
 }
 
-func (this Service) HandleMessage(writer *Writer, request []byte) error {
+func (this *Service) Handle(method string, call ServerCall, out *Writer) error {
+	switch method {
+	case "GetInterfaceDescription":
+		return this.getInterfaceDescription(call, out)
+	case "GetInfo":
+		return this.getInfo(call, out)
+	}
+	return MethodNotFound(method, out)
+}
+
+func (this *Service) registerInterface(iface Interface) {
+	name := iface.GetName()
+	this.services[name] = iface
+}
+
+func (this *Service) HandleMessage(writer *Writer, request []byte) error {
 	var call ServerCall
 
 	err := json.Unmarshal(request, &call)
@@ -175,21 +180,13 @@ func (this Service) HandleMessage(writer *Writer, request []byte) error {
 
 	interfacename := call.Method[:r]
 	methodname := call.Method[r+1:]
-	var iface *Interface
-	iface, ok := this.services[interfacename]
+	_, ok := this.services[interfacename]
 
 	if !ok {
 		return InterfaceNotFound(interfacename, writer)
 	}
 
-	service := (*iface).Get()
-	method, ok := service.Methods[methodname]
-
-	if !ok {
-		return MethodNotFound(methodname, writer)
-	}
-
-	return method(iface, call, writer)
+	return this.services[interfacename].Handle(methodname, call, writer)
 }
 
 func activationListener() net.Listener {
@@ -214,6 +211,10 @@ func activationListener() net.Listener {
 		return nil
 	}
 	return listener
+}
+
+func (this Service) Stop() {
+	this.quit = true
 }
 
 func (this Service) Run(address string) error {
@@ -246,12 +247,13 @@ func (this Service) Run(address string) error {
 		l, _ = net.Listen(protocol, addr)
 	}
 	defer l.Close()
+	this.quit = false
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
 		writer := NewWriter(bufio.NewWriter(conn))
 
-		for {
+		for !this.quit {
 			request, err := reader.ReadBytes('\x00')
 			if err != nil {
 				break
@@ -265,31 +267,29 @@ func (this Service) Run(address string) error {
 		conn.Close()
 	}
 
-	for {
+	for !this.quit {
 		conn, _ := l.Accept()
 		go handleConnection(conn)
 	}
+
+	return nil
 }
 
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	r := Service{
-		vendor:  vendor,
-		product: product,
-		version: version,
-		url:     url,
-		myservice: InterfaceImpl{
+		InterfaceImpl: InterfaceImpl{
 			Name:        "org.varlink.service",
 			Description: OrgVarlinkService,
-			Methods: map[string]Method{
-				"GetInfo":                 getInfo,
-				"GetInterfaceDescription": getInterfaceDescription,
-			},
 		},
-		services: make(map[string]*Interface),
+		vendor:   vendor,
+		product:  product,
+		version:  version,
+		url:      url,
+		services: make(map[string]Interface),
 	}
 
 	// Register ourselves
-	r.registerInterface(Interface(r))
+	r.registerInterface(&r)
 	for _, iface := range ifaces {
 		r.registerInterface(iface)
 	}
