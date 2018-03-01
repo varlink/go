@@ -54,6 +54,34 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 	b.WriteString("}\n\n")
 }
 
+func writeGenerator(iface *varlink.InterfaceT) {
+	var b bytes.Buffer
+
+	pkgname := strings.Replace(iface.Name, ".", "", -1)
+	b.WriteString("package " + pkgname + "\n\n")
+
+	b.WriteString("Description = `\n" + iface.Description + "\n`\n\n")
+
+	for _, member := range iface.Members {
+		switch member.(type) {
+		case *varlink.TypeAlias:
+			alias := member.(*varlink.TypeAlias)
+			writeTypeDecl(&b, alias.Name, alias.Type)
+
+		case *varlink.MethodT:
+			method := member.(*varlink.MethodT)
+			writeTypeDecl(&b, method.Name+"_In", method.In)
+			writeTypeDecl(&b, method.Name+"_Out", method.Out)
+
+		case *varlink.ErrorType:
+			err := member.(*varlink.ErrorType)
+			writeTypeDecl(&b, err.Name+"_Error", err.Type)
+		}
+	}
+
+	fmt.Println(b.String())
+}
+
 func main() {
 	if len(os.Args) < 3 {
 		help(os.Args[0])
@@ -66,29 +94,7 @@ func main() {
 
 	intf := strings.TrimRight(string(file), "\n")
 	iface := varlink.NewInterface(intf)
-
-	var b bytes.Buffer
-
-	iname := strings.Replace(iface.Name, ".", "", -1)
-	b.WriteString("package " + iname + "\n\n")
-
-	for _, member := range iface.Members {
-		switch member.(type) {
-		case *varlink.TypeAlias:
-			alias := member.(*varlink.TypeAlias)
-			writeTypeDecl(&b, alias.Name, alias.Type)
-
-		case *varlink.MethodT:
-			method := member.(*varlink.MethodT)
-			writeTypeDecl(&b, method.Name + "_In", method.In)
-			writeTypeDecl(&b, method.Name + "_Out", method.Out)
-
-		case *varlink.ErrorType:
-			err := member.(*varlink.ErrorType)
-			writeTypeDecl(&b, err.Name + "_Error", err.Type)
-		}
-	}
-	fmt.Println(b.String())
+	writeGenerator(iface)
 
 	pkg := os.Args[1]
 	name := path.Base(os.Args[2])

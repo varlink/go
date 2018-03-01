@@ -32,26 +32,25 @@ type TypeField struct {
 
 type InterfaceT struct {
 	Name        string
+	Doc         string
 	Description string
-
-	Members []interface{}
-
-	Aliases map[string]*TypeAlias
-	Methods map[string]*MethodT
-	Errors  map[string]*ErrorType
+	Members     []interface{}
+	Aliases     map[string]*TypeAlias
+	Methods     map[string]*MethodT
+	Errors      map[string]*ErrorType
 }
 
 type TypeAlias struct {
-	Name        string
-	Description string
-	Type        *Type
+	Name string
+	Doc  string
+	Type *Type
 }
 
 type MethodT struct {
-	Name        string
-	Description string
-	In          *Type
-	Out         *Type
+	Name string
+	Doc  string
+	In   *Type
+	Out  *Type
 }
 
 type ErrorType struct {
@@ -314,7 +313,7 @@ func (p *parser) readInterface() *InterfaceT {
 	}
 
 	p.advance()
-	iface.Description = p.lastComment.String()
+	iface.Doc = p.lastComment.String()
 	iface.Name = p.readInterfaceName()
 	if iface.Name == "" {
 		return nil
@@ -330,7 +329,7 @@ func (p *parser) readInterface() *InterfaceT {
 			alias := &TypeAlias{}
 
 			p.advance()
-			alias.Description = p.lastComment.String()
+			alias.Doc = p.lastComment.String()
 			alias.Name = p.readTypeName()
 			if alias.Name == "" {
 				return nil
@@ -349,7 +348,7 @@ func (p *parser) readInterface() *InterfaceT {
 			method := &MethodT{}
 
 			p.advance()
-			method.Description = p.lastComment.String()
+			method.Doc = p.lastComment.String()
 			method.Name = p.readTypeName()
 			if method.Name == "" {
 				return nil
@@ -413,5 +412,6 @@ func NewInterface(description string) *InterfaceT {
 		return nil
 	}
 
+	iface.Description = description
 	return iface
 }
