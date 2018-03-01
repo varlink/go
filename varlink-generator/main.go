@@ -37,6 +37,10 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 }
 
 func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
+	if len(t.Fields) == 0 {
+		return
+	}
+
 	b.WriteString("type " + name + " {\n")
 	for _, field := range t.Fields {
 		name := strings.Title(field.Name)
@@ -51,14 +55,20 @@ func main() {
 	if len(os.Args) < 3 {
 		help(os.Args[0])
 	}
+
 	file, err := ioutil.ReadFile(os.Args[2])
 	if err != nil {
 		fmt.Printf("Error reading file '%s': %s\n", os.Args[2], err)
 	}
+
 	intf := strings.TrimRight(string(file), "\n")
 	iface := varlink.NewInterface(intf)
-	fmt.Println("Writing: " + iface.Name)
+
 	var b bytes.Buffer
+
+	iname := strings.Replace(iface.Name, ".", "", -1)
+	b.WriteString("package " + iname + "\n\n")
+
 	for _, member := range iface.Members {
 		switch member.(type) {
 		case *varlink.TypeAlias:
@@ -72,7 +82,7 @@ func main() {
 
 		case *varlink.ErrorType:
 			err := member.(*varlink.ErrorType)
-			fmt.Println("E " + err.Name)
+			writeTypeDecl(&b, err.Name + "_ErrorParameters", err.Type)
 		}
 	}
 	fmt.Println(b.String())
