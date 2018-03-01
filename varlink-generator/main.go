@@ -33,6 +33,9 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 	case varlink.Array:
 		b.WriteString("[]")
 		writeType(b, t.ElementType)
+
+	case varlink.Alias:
+		b.WriteString(t.Alias)
 	}
 }
 
@@ -77,12 +80,12 @@ func main() {
 
 		case *varlink.MethodT:
 			method := member.(*varlink.MethodT)
-			writeTypeDecl(&b, method.Name + "_CallParameters", method.In)
-			writeTypeDecl(&b, method.Name + "_ReplyParameters", method.Out)
+			writeTypeDecl(&b, method.Name + "_In", method.In)
+			writeTypeDecl(&b, method.Name + "_Out", method.Out)
 
 		case *varlink.ErrorType:
 			err := member.(*varlink.ErrorType)
-			writeTypeDecl(&b, err.Name + "_ErrorParameters", err.Type)
+			writeTypeDecl(&b, err.Name + "_Error", err.Type)
 		}
 	}
 	fmt.Println(b.String())
