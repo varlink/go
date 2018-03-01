@@ -213,11 +213,11 @@ func activationListener() net.Listener {
 	return listener
 }
 
-func (this Service) Stop() {
+func (this *Service) Stop() {
 	this.quit = true
 }
 
-func (this Service) Run(address string) error {
+func (this *Service) Run(address string) error {
 	words := strings.SplitN(address, ":", 2)
 	protocol := words[0]
 	addr := words[1]
@@ -265,6 +265,9 @@ func (this Service) Run(address string) error {
 			}
 		}
 		conn.Close()
+		if this.quit {
+			l.Close()
+		}
 	}
 
 	for !this.quit {
