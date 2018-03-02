@@ -72,7 +72,7 @@ func main() {
 
 	var b bytes.Buffer
 	b.WriteString("package " + pkgname + "\n\n")
-	b.WriteString(`import 	"github.com/varlink/go-varlink"` + "\n\n")
+	b.WriteString(`import "github.com/varlink/go-varlink"` + "\n\n")
 
 	for _, member := range iface.Members {
 		switch member.(type) {
