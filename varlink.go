@@ -71,6 +71,9 @@ func (this *ContextImpl) WantMore() bool {
 }
 
 func (this *ContextImpl) Arguments(in interface{}) error {
+	if this.call.Parameters == nil {
+		return InvalidParameter(this, "parameters")
+	}
 	err := json.Unmarshal(*this.call.Parameters, in)
 	if err != nil {
 		return InvalidParameter(this, "parameters")
