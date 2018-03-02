@@ -54,41 +54,41 @@ func keyList(mymap *map[string]Interface) []string {
 	return keys
 }
 
-func InterfaceNotFound(name string, out *Writer) error {
+func InterfaceNotFound(ctx Context, name string) error {
 	type ReplyParameters struct {
 		Name string `json:"interface"`
 	}
-	return out.Reply(ServerReply{
+	return ctx.Reply(&ServerReply{
 		Error:      "org.varlink.service.InterfaceNotFound",
 		Parameters: ReplyParameters{Name: name},
 	})
 }
 
-func MethodNotFound(name string, out *Writer) error {
+func MethodNotFound(ctx Context, name string) error {
 	type ReplyParameters struct {
 		Name string `json:"method"`
 	}
-	return out.Reply(ServerReply{
+	return ctx.Reply(&ServerReply{
 		Error:      "org.varlink.service.MethodNotFound",
 		Parameters: ReplyParameters{Name: name},
 	})
 }
 
-func MethodNotImplemented(name string, out *Writer) error {
+func MethodNotImplemented(ctx Context, name string) error {
 	type ReplyParameters struct {
 		Name string `json:"method"`
 	}
-	return out.Reply(ServerReply{
+	return ctx.Reply(&ServerReply{
 		Error:      "org.varlink.service.MethodNotImplemented",
 		Parameters: ReplyParameters{Name: name},
 	})
 }
 
-func InvalidParameter(parameter string, out *Writer) error {
+func InvalidParameter(ctx Context, parameter string) error {
 	type ReplyParameters struct {
 		Parameter string `json:"parameter"`
 	}
-	return out.Reply(ServerReply{
+	return ctx.Reply(&ServerReply{
 		Error:      "org.varlink.service.InvalidParameter",
 		Parameters: ReplyParameters{Parameter: parameter},
 	})
@@ -104,7 +104,7 @@ type Service struct {
 	quit     bool
 }
 
-func (this *Service) GetInfo(call *ServerCall, out *Writer) error {
+func (this *Service) GetInfo(ctx Context) error {
 	type ReplyParameters struct {
 		Vendor     string   `json:"vendor"`
 		Product    string   `json:"product"`
@@ -113,7 +113,7 @@ func (this *Service) GetInfo(call *ServerCall, out *Writer) error {
 		Interfaces []string `json:"interfaces"`
 	}
 
-	return out.Reply(ServerReply{
+	return ctx.Reply(&ServerReply{
 		Parameters: ReplyParameters{
 			Vendor:     this.vendor,
 			Product:    this.product,
@@ -124,7 +124,7 @@ func (this *Service) GetInfo(call *ServerCall, out *Writer) error {
 	})
 }
 
-func (this *Service) GetInterfaceDescription(call *ServerCall, out *Writer) error {
+func (this *Service) GetInterfaceDescription(ctx Context) error {
 	type CallParameters struct {
 		Name string `json:"interface"`
 	}
@@ -134,18 +134,18 @@ func (this *Service) GetInterfaceDescription(call *ServerCall, out *Writer) erro
 	}
 
 	var in CallParameters
-	err := json.Unmarshal(*call.Parameters, &in)
+	err := ctx.Arguments(&in)
 	if err != nil {
-		return InvalidParameter("parameters", out)
+		return InvalidParameter(ctx, "parameters")
 	}
 
 	ifacep, ok := this.services[in.Name]
 	ifacen := ifacep.(Interface)
 	if !ok {
-		return InvalidParameter("Name", out)
+		return InvalidParameter(ctx, "Name")
 	}
 
-	return out.Reply(ServerReply{
+	return ctx.Reply(&ServerReply{
 		Parameters: ReplyParameters{ifacen.GetDescription()},
 	})
 }
@@ -155,7 +155,7 @@ func (this *Service) registerInterface(iface Interface) {
 	this.services[name] = iface
 }
 
-func (this *Service) HandleMessage(request []byte, out *Writer) error {
+func (this *Service) HandleMessage(ctx *ContextImpl, request []byte) error {
 	var call ServerCall
 
 	err := json.Unmarshal(request, &call)
@@ -163,10 +163,10 @@ func (this *Service) HandleMessage(request []byte, out *Writer) error {
 	if err != nil {
 		return err
 	}
-
+	ctx.call = &call
 	r := strings.LastIndex(call.Method, ".")
 	if r <= 0 {
-		return InvalidParameter("method", out)
+		return InvalidParameter(ctx, "method")
 	}
 
 	interfacename := call.Method[:r]
@@ -174,20 +174,19 @@ func (this *Service) HandleMessage(request []byte, out *Writer) error {
 	_, ok := this.services[interfacename]
 
 	if !ok {
-		return InterfaceNotFound(interfacename, out)
+		return InterfaceNotFound(ctx, interfacename)
 	}
 	if !this.services[interfacename].IsMethod(methodname) {
-		return MethodNotFound(methodname, out)
+		return MethodNotFound(ctx, methodname)
 	}
 
 	v := reflect.ValueOf(this.services[interfacename]).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
-		return MethodNotImplemented(methodname, out)
+		return MethodNotImplemented(ctx, methodname)
 	}
 
 	args := []reflect.Value{
-		reflect.ValueOf(&call),
-		reflect.ValueOf(out),
+		reflect.ValueOf(ctx),
 	}
 	ret := v.Call(args)
 
@@ -264,7 +263,7 @@ func (this *Service) Run(address string) error {
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
-		writer := NewWriter(bufio.NewWriter(conn))
+		context := ContextImpl{writer: bufio.NewWriter(conn)}
 
 		for !this.quit {
 			request, err := reader.ReadBytes('\x00')
@@ -272,7 +271,7 @@ func (this *Service) Run(address string) error {
 				break
 			}
 
-			err = this.HandleMessage(request[:len(request)-1], &writer)
+			err = this.HandleMessage(&context, request[:len(request)-1])
 			if err != nil {
 				break
 			}

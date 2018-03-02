@@ -54,15 +54,31 @@ type ClientReply struct {
 	Error      string           `json:"error,omitempty"`
 }
 
-type Writer struct {
+type Context interface {
+	WantMore() bool
+	Arguments(in interface{}) error
+	Reply(reply *ServerReply) error
+}
+
+type ContextImpl struct {
+	Context
 	writer *bufio.Writer
+	call   *ServerCall
 }
 
-func NewWriter(writer *bufio.Writer) Writer {
-	return Writer{writer}
+func (this *ContextImpl) WantMore() bool {
+	return this.call.More
 }
 
-func (this Writer) Reply(reply ServerReply) error {
+func (this *ContextImpl) Arguments(in interface{}) error {
+	err := json.Unmarshal(*this.call.Parameters, in)
+	if err != nil {
+		return InvalidParameter(this, "parameters")
+	}
+	return err
+}
+
+func (this *ContextImpl) Reply(reply *ServerReply) error {
 	b, e := json.Marshal(reply)
 	if e != nil {
 		return e
