@@ -12,37 +12,6 @@ import (
 	"syscall"
 )
 
-var OrgVarlinkService = `# The Varlink Service Interface is provided by every varlink service. It
-# describes the service and the interfaces it implements.
-interface org.varlink.service
-
-# Get a list of all the interfaces a service provides and information
-# about the implementation.
-method GetInfo() -> (
-  vendor: string,
-  product: string,
-  version: string,
-  url: string,
-  interfaces: string[]
-)
-
-# Get the description of an interface that is implemented by this service.
-method GetInterfaceDescription(interface: string) -> (description: string)
-
-# The requested interface was not found.
-error InterfaceNotFound (interface: string)
-
-# The requested method was not found
-error MethodNotFound (method: string)
-
-# The interface defines the requested method, but the service does not
-# implement it.
-error MethodNotImplemented (method: string)
-
-# One of the passed parameters is invalid.
-error InvalidParameter (parameter: string)
-`
-
 func keyList(mymap *map[string]Interface) []string {
 	keys := make([]string, len(*mymap))
 
@@ -65,48 +34,32 @@ type Service struct {
 }
 
 func (this *Service) GetInfo(ctx Context) error {
-	type ReplyParameters struct {
-		Vendor     string   `json:"vendor"`
-		Product    string   `json:"product"`
-		Version    string   `json:"version"`
-		URL        string   `json:"url"`
-		Interfaces []string `json:"interfaces"`
-	}
-
 	return ctx.Reply(&ServerOut{
-		Parameters: ReplyParameters{
+		Parameters: GetInfo_Out{
 			Vendor:     this.vendor,
 			Product:    this.product,
 			Version:    this.version,
-			URL:        this.url,
+			Url:        this.url,
 			Interfaces: keyList(&this.services),
 		},
 	})
 }
 
 func (this *Service) GetInterfaceDescription(ctx Context) error {
-	type CallParameters struct {
-		Name string `json:"interface"`
-	}
-
-	type ReplyParameters struct {
-		InterfaceString string `json:"description"`
-	}
-
-	var in CallParameters
+	var in GetInterfaceDescription_In
 	err := ctx.Args(&in)
 	if err != nil {
 		return InvalidParameter(ctx, "parameters")
 	}
 
-	ifacep, ok := this.services[in.Name]
+	ifacep, ok := this.services[in.Interface]
 	ifacen := ifacep.(Interface)
 	if !ok {
 		return InvalidParameter(ctx, "Name")
 	}
 
 	return ctx.Reply(&ServerOut{
-		Parameters: ReplyParameters{ifacen.GetDescription()},
+		Parameters: GetInterfaceDescription_Out{ifacen.GetDescription()},
 	})
 }
 
@@ -262,11 +215,7 @@ func (this *Service) Run(address string) error {
 
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	r := Service{
-		InterfaceDefinition: InterfaceDefinition{
-			Name:        "org.varlink.service",
-			Description: OrgVarlinkService,
-			Methods:     map[string]bool{"GetInterfaceDescription": true, "GetInfo": true},
-		},
+		InterfaceDefinition: NewInterfaceDefinition(),
 		vendor:   vendor,
 		product:  product,
 		version:  version,
