@@ -89,7 +89,7 @@ func (p *parser) advance() bool {
 			p.lineStart = p.position
 			p.lastComment.Reset()
 
-		} else if char == ' ' {
+		} else if char == ' ' || char == '\t' {
 			// ignore
 
 		} else if char == '#' {
@@ -405,12 +405,12 @@ func ParseInterface(description string) (*InterfaceT, error) {
 
 	p.advance()
 	iface, err := p.readInterface()
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
 
 	if p.advance() {
-		return nil, fmt.Errorf("advance error")
+		return nil, fmt.Errorf("advance error %s", p.input[p.position:])
 	}
 
 	iface.Description = description
