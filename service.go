@@ -134,7 +134,7 @@ func (this *Service) GetInterfaceDescription(ctx Context) error {
 	}
 
 	var in CallParameters
-	err := ctx.Arguments(&in)
+	err := ctx.Args(&in)
 	if err != nil {
 		return InvalidParameter(ctx, "parameters")
 	}

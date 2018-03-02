@@ -56,7 +56,7 @@ type ClientReply struct {
 
 type Context interface {
 	WantMore() bool
-	Arguments(in interface{}) error
+	Args(in interface{}) error
 	Reply(reply *ServerReply) error
 }
 
@@ -70,7 +70,7 @@ func (this *ContextImpl) WantMore() bool {
 	return this.call.More
 }
 
-func (this *ContextImpl) Arguments(in interface{}) error {
+func (this *ContextImpl) Args(in interface{}) error {
 	if this.call.Parameters == nil {
 		return InvalidParameter(this, "parameters")
 	}
