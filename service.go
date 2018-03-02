@@ -157,17 +157,24 @@ func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
 	return ret[0].Interface().(error)
 }
 
-func activationListener() net.Listener {
-	defer os.Unsetenv("LISTEN_PID")
-	defer os.Unsetenv("LISTEN_FDS")
-
+func IsActivated() bool {
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
 	if err != nil || pid != os.Getpid() {
-		return nil
+		return false
 	}
 
 	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
 	if err != nil || nfds != 1 {
+		return false
+	}
+	return true
+}
+
+func activationListener() net.Listener {
+	defer os.Unsetenv("LISTEN_PID")
+	defer os.Unsetenv("LISTEN_FDS")
+
+	if !IsActivated() {
 		return nil
 	}
 
