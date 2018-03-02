@@ -104,7 +104,7 @@ type Service struct {
 	quit     bool
 }
 
-func (this *Service) getInfo(call ServerCall, out *Writer) error {
+func (this *Service) GetInfo(call ServerCall, out *Writer) error {
 	type ReplyParameters struct {
 		Vendor     string   `json:"vendor"`
 		Product    string   `json:"product"`
@@ -124,7 +124,7 @@ func (this *Service) getInfo(call ServerCall, out *Writer) error {
 	})
 }
 
-func (this *Service) getInterfaceDescription(call ServerCall, out *Writer) error {
+func (this *Service) GetInterfaceDescription(call ServerCall, out *Writer) error {
 	type CallParameters struct {
 		Name string `json:"interface"`
 	}
@@ -148,16 +148,6 @@ func (this *Service) getInterfaceDescription(call ServerCall, out *Writer) error
 	return out.Reply(ServerReply{
 		Parameters: ReplyParameters{ifacen.GetDescription()},
 	})
-}
-
-func (this *Service) Handle(method string, call ServerCall, out *Writer) error {
-	switch method {
-	case "GetInterfaceDescription":
-		return this.getInterfaceDescription(call, out)
-	case "GetInfo":
-		return this.getInfo(call, out)
-	}
-	return MethodNotFound(method, out)
 }
 
 func (this *Service) registerInterface(iface Interface) {
