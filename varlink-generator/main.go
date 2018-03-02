@@ -49,7 +49,7 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 		name := strings.Title(field.Name)
 		b.WriteString("\t" + name + " ")
 		writeType(b, field.Type)
-		b.WriteString(" `json:\"" + field.Name + "\"`\n")
+		b.WriteString(" `json:\"" + field.Name + ",omitempty\"`\n")
 	}
 	b.WriteString("}\n\n")
 }
