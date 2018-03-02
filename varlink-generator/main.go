@@ -102,7 +102,7 @@ func main() {
 		switch member.(type) {
 		case *varlink.MethodT:
 			method := member.(*varlink.MethodT)
-			b.WriteString(`\t\t\t"` + method.Name + `",` + "\n")
+			b.WriteString("\t\t\t\"" + method.Name + `",` + "\n")
 		}
 	}
 	b.WriteString("\t\t},\n\t}\n}\n")
