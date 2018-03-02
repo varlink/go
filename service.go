@@ -94,7 +94,7 @@ func InvalidParameter(parameter string, out *Writer) error {
 }
 
 type Service struct {
-	InterfaceImpl
+	InterfaceDefinition
 	vendor   string
 	product  string
 	version  string
@@ -285,7 +285,7 @@ func (this *Service) Run(address string) error {
 
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	r := Service{
-		InterfaceImpl: InterfaceImpl{
+		InterfaceDefinition: InterfaceDefinition{
 			Name:        "org.varlink.service",
 			Description: OrgVarlinkService,
 			Methods:     []string{"GetInfo", "GetDescription"},

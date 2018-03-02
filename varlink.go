@@ -13,22 +13,22 @@ type Interface interface {
 	Handle(method string, in ServerCall, out *Writer) error
 }
 
-type InterfaceImpl struct {
+type InterfaceDefinition struct {
 	Name        string
 	Description string
 	Methods     []string
 	sorted      bool
 }
 
-func (this *InterfaceImpl) GetName() string {
+func (this *InterfaceDefinition) GetName() string {
 	return this.Name
 }
 
-func (this *InterfaceImpl) GetDescription() string {
+func (this *InterfaceDefinition) GetDescription() string {
 	return this.Description
 }
 
-func (this *InterfaceImpl) IsMethod(methodname string) bool {
+func (this *InterfaceDefinition) IsMethod(methodname string) bool {
 	if !this.sorted {
 		sort.Strings(this.Methods)
 		this.sorted = true
