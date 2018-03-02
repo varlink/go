@@ -9,6 +9,7 @@ import (
 type Interface interface {
 	GetName() string
 	GetDescription() string
+	IsMethod(methodname string) bool
 	Handle(method string, in ServerCall, out *Writer) error
 }
 

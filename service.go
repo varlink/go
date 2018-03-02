@@ -185,7 +185,7 @@ func (this *Service) HandleMessage(request []byte, out *Writer) error {
 	if !ok {
 		return InterfaceNotFound(interfacename, out)
 	}
-	if !this.IsMethod(methodname) {
+	if !this.services[interfacename].IsMethod(methodname) {
 		return MethodNotFound(methodname, out)
 	}
 	return this.services[interfacename].Handle(methodname, call, out)
