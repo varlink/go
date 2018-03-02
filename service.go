@@ -265,7 +265,7 @@ func NewService(vendor string, product string, version string, url string, iface
 		InterfaceDefinition: InterfaceDefinition{
 			Name:        "org.varlink.service",
 			Description: OrgVarlinkService,
-			Methods:     map[string]bool{"GetDescription": true, "GetInfo": true},
+			Methods:     map[string]bool{"GetInterfaceDescription": true, "GetInfo": true},
 		},
 		vendor:   vendor,
 		product:  product,
