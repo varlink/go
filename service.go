@@ -115,7 +115,7 @@ func (this *Service) registerInterface(iface Interface) {
 	this.services[name] = iface
 }
 
-func (this *Service) HandleMessage(ctx *ContextImpl, request []byte) error {
+func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
 	var call ServerCall
 
 	err := json.Unmarshal(request, &call)
@@ -126,7 +126,7 @@ func (this *Service) HandleMessage(ctx *ContextImpl, request []byte) error {
 	ctx.call = &call
 	r := strings.LastIndex(call.Method, ".")
 	if r <= 0 {
-		return InvalidParameter(ctx, "method")
+		return InvalidParameter(&ctx, "method")
 	}
 
 	interfacename := call.Method[:r]
@@ -134,19 +134,19 @@ func (this *Service) HandleMessage(ctx *ContextImpl, request []byte) error {
 	_, ok := this.services[interfacename]
 
 	if !ok {
-		return InterfaceNotFound(ctx, interfacename)
+		return InterfaceNotFound(&ctx, interfacename)
 	}
 	if !this.services[interfacename].IsMethod(methodname) {
-		return MethodNotFound(ctx, methodname)
+		return MethodNotFound(&ctx, methodname)
 	}
 
 	v := reflect.ValueOf(this.services[interfacename]).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
-		return MethodNotImplemented(ctx, methodname)
+		return MethodNotImplemented(&ctx, methodname)
 	}
 
 	args := []reflect.Value{
-		reflect.ValueOf(ctx),
+		reflect.ValueOf(&ctx),
 	}
 	ret := v.Call(args)
 
@@ -231,7 +231,7 @@ func (this *Service) Run(address string) error {
 				break
 			}
 
-			err = this.HandleMessage(&context, request[:len(request)-1])
+			err = this.HandleMessage(context, request[:len(request)-1])
 			if err != nil {
 				break
 			}
