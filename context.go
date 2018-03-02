@@ -3,6 +3,7 @@ package varlink
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 )
 
 type Context interface {
@@ -23,13 +24,9 @@ func (this *ContextImpl) WantMore() bool {
 
 func (this *ContextImpl) Args(in interface{}) error {
 	if this.call.Parameters == nil {
-		return InvalidParameter(this, "parameters")
+		return fmt.Errorf("Empty Parameters")
 	}
-	err := json.Unmarshal(*this.call.Parameters, in)
-	if err != nil {
-		return InvalidParameter(this, "parameters")
-	}
-	return err
+	return json.Unmarshal(*this.call.Parameters, in)
 }
 
 func (this *ContextImpl) Reply(reply *ServerReply) error {
