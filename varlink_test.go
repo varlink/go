@@ -10,7 +10,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	ifaces := []Interface{
-	// list own interface here
+		// list own interface here
 	}
 	service := NewService(
 		"Varlink Test",
@@ -25,14 +25,14 @@ func TestNewService(t *testing.T) {
 	if err == nil {
 		t.Fatal("HandleMessage returned non-error")
 	}
-	msg := []byte("{\"method\":\"org.varlink.service.GetInfo\"}")
+	msg := []byte(`{"method":"org.varlink.service.GetInfo"}`)
 	err = service.HandleMessage(msg, &writer)
 	if err != nil {
 		fmt.Println(err)
 		t.Fatal("HandleMessage returned error")
 	}
 	returned := b.String()
-	const expected = "{\"parameters\":{\"vendor\":\"Varlink Test\",\"product\":\"Varlink Test\",\"version\":\"1\",\"url\":\"https://github.com/varlink/go-varlink\",\"interfaces\":[\"org.varlink.service\"]}}\000"
+	const expected = `{"parameters":{"vendor":"Varlink Test","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go-varlink","interfaces":["org.varlink.service"]}}` + "\000"
 	if strings.Compare(returned, expected) != 0 {
 		fmt.Println("Expected: \"" + expected + "\"")
 		fmt.Printf("Expected len: %d\n", len(expected))
