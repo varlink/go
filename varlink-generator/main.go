@@ -91,18 +91,16 @@ func main() {
 		}
 	}
 
-	b.WriteString("const InterfaceName string = \"" + iface.Name + "\"\n\n")
-	b.WriteString("const InterfaceDescription string = `\n" + iface.Description + "\n`\n")
 	b.WriteString("func NewInterfaceDefinition() varlink.InterfaceDefinition {\n" +
 		"\treturn varlink.InterfaceDefinition{\n" +
-		"\t\tName:        InterfaceName,\n" +
-		"\t\tDescription: InterfaceDescription,\n" +
-		"\t\tMethods: []string{\n")
+		"\t\tName:        `" + iface.Name + "`,\n" +
+		"\t\tDescription: `" + iface.Description + "`,\n" +
+		"\t\tMethods: map[string]bool{\n")
 	for _, member := range iface.Members {
 		switch member.(type) {
 		case *varlink.MethodT:
 			method := member.(*varlink.MethodT)
-			b.WriteString("\t\t\t\"" + method.Name + `",` + "\n")
+			b.WriteString("\t\t\t\"" + method.Name + `": true,` + "\n")
 		}
 	}
 	b.WriteString("\t\t},\n\t}\n}\n")
