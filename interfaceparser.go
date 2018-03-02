@@ -2,6 +2,7 @@ package varlink
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -300,9 +301,9 @@ func (p *parser) readType() *Type {
 	return t
 }
 
-func (p *parser) readInterface() *InterfaceT {
+func (p *parser) readInterface() (*InterfaceT, error) {
 	if keyword := p.readKeyword(); keyword != "interface" {
-		return nil
+		return nil, fmt.Errorf("missing interface keyword")
 	}
 
 	iface := &InterfaceT{
@@ -316,7 +317,7 @@ func (p *parser) readInterface() *InterfaceT {
 	iface.Doc = p.lastComment.String()
 	iface.Name = p.readInterfaceName()
 	if iface.Name == "" {
-		return nil
+		return nil, fmt.Errorf("interface name")
 	}
 
 	for {
@@ -332,13 +333,13 @@ func (p *parser) readInterface() *InterfaceT {
 			alias.Doc = p.lastComment.String()
 			alias.Name = p.readTypeName()
 			if alias.Name == "" {
-				return nil
+				return nil, fmt.Errorf("missing alias name")
 			}
 
 			p.advance()
 			alias.Type = p.readType()
 			if alias.Type == nil {
-				return nil
+				return nil, fmt.Errorf("missing alias type")
 			}
 
 			iface.Members = append(iface.Members, alias)
@@ -351,26 +352,26 @@ func (p *parser) readInterface() *InterfaceT {
 			method.Doc = p.lastComment.String()
 			method.Name = p.readTypeName()
 			if method.Name == "" {
-				return nil
+				return nil, fmt.Errorf("missing method type")
 			}
 
 			p.advance()
 			method.In = p.readType()
 			if method.In == nil {
-				return nil
+				return nil, fmt.Errorf("missing method input")
 			}
 
 			p.advance()
 			one := p.next()
 			two := p.next()
 			if (one != '-') || two != '>' {
-				return nil
+				return nil, fmt.Errorf("missing method '->' operator")
 			}
 
 			p.advance()
 			method.Out = p.readType()
 			if method.Out == nil {
-				return nil
+				return nil, fmt.Errorf("missing method output")
 			}
 
 			iface.Members = append(iface.Members, method)
@@ -382,7 +383,7 @@ func (p *parser) readInterface() *InterfaceT {
 			p.advance()
 			err.Name = p.readTypeName()
 			if err.Name == "" {
-				return nil
+				return nil, fmt.Errorf("missing error name")
 			}
 
 			p.advanceOnLine()
@@ -392,26 +393,26 @@ func (p *parser) readInterface() *InterfaceT {
 			iface.Errors[err.Name] = err
 
 		default:
-			return nil
+			return nil, fmt.Errorf("unknown keyword '%s'", keyword)
 		}
 	}
 
-	return iface
+	return iface, nil
 }
 
-func NewInterface(description string) *InterfaceT {
+func ParseInterface(description string) (*InterfaceT, error) {
 	p := &parser{input: description}
 
 	p.advance()
-	iface := p.readInterface()
-	if iface == nil {
-		return nil
+	iface, err := p.readInterface()
+	if err == nil {
+		return nil, err
 	}
 
 	if p.advance() {
-		return nil
+		return nil, fmt.Errorf("advance error")
 	}
 
 	iface.Description = description
-	return iface
+	return iface, nil
 }

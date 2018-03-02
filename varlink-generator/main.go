@@ -67,7 +67,11 @@ func main() {
 	}
 
 	description := strings.TrimRight(string(file), "\n")
-	iface := varlink.NewInterface(description)
+	iface, err := varlink.ParseInterface(description)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	pkgname := strings.Replace(iface.Name, ".", "", -1)
 
 	var b bytes.Buffer
