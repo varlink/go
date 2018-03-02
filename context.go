@@ -9,13 +9,13 @@ import (
 type Context interface {
 	WantMore() bool
 	Args(in interface{}) error
-	Reply(reply *ServerReply) error
+	Reply(reply *ServerOut) error
 }
 
 type ContextImpl struct {
 	Context
 	writer *bufio.Writer
-	call   *ServerCall
+	call   *ServerIn
 }
 
 func (this *ContextImpl) WantMore() bool {
@@ -29,7 +29,7 @@ func (this *ContextImpl) Args(in interface{}) error {
 	return json.Unmarshal(*this.call.Parameters, in)
 }
 
-func (this *ContextImpl) Reply(reply *ServerReply) error {
+func (this *ContextImpl) Reply(reply *ServerOut) error {
 	b, e := json.Marshal(reply)
 	if e != nil {
 		return e

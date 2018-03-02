@@ -73,7 +73,7 @@ func (this *Service) GetInfo(ctx Context) error {
 		Interfaces []string `json:"interfaces"`
 	}
 
-	return ctx.Reply(&ServerReply{
+	return ctx.Reply(&ServerOut{
 		Parameters: ReplyParameters{
 			Vendor:     this.vendor,
 			Product:    this.product,
@@ -105,7 +105,7 @@ func (this *Service) GetInterfaceDescription(ctx Context) error {
 		return InvalidParameter(ctx, "Name")
 	}
 
-	return ctx.Reply(&ServerReply{
+	return ctx.Reply(&ServerOut{
 		Parameters: ReplyParameters{ifacen.GetDescription()},
 	})
 }
@@ -116,7 +116,7 @@ func (this *Service) registerInterface(iface Interface) {
 }
 
 func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
-	var call ServerCall
+	var call ServerIn
 
 	err := json.Unmarshal(request, &call)
 
