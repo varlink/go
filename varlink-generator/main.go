@@ -72,6 +72,7 @@ func main() {
 
 	var b bytes.Buffer
 	b.WriteString("package " + pkgname + "\n\n")
+	b.WriteString(`import 	"github.com/varlink/go-varlink"` + "\n\n")
 
 	for _, member := range iface.Members {
 		switch member.(type) {
@@ -90,7 +91,9 @@ func main() {
 		}
 	}
 
+	b.WriteString("const InterfaceName string = \"" + iface.Name + "\"\n\n")
 	b.WriteString("const InterfaceDescription string = `\n" + iface.Description + "\n`\n")
+	b.WriteString("func NewInterfaceDefinition() varlink.InterfaceDefinition {return varlink.InterfaceDefinition{Name: InterfaceName, Description: InterfaceDescription}}\n")
 
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
 	err = ioutil.WriteFile(filename, b.Bytes(), 0660)

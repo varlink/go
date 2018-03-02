@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -188,7 +189,23 @@ func (this *Service) HandleMessage(request []byte, out *Writer) error {
 	if !this.services[interfacename].IsMethod(methodname) {
 		return MethodNotFound(methodname, out)
 	}
-	return this.services[interfacename].Handle(methodname, call, out)
+
+	v := reflect.ValueOf(this.services[interfacename]).MethodByName(methodname)
+	if v.Kind() != reflect.Func {
+		return MethodNotFound(methodname, out)
+	}
+
+	args := []reflect.Value{
+		reflect.ValueOf(call),
+		reflect.ValueOf(out),
+	}
+	ret := v.Call(args)
+
+	if ret[0].Interface() == nil {
+		return nil
+	}
+
+	return ret[0].Interface().(error)
 }
 
 func activationListener() net.Listener {
