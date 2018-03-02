@@ -1,3 +1,5 @@
+// Generated with varlink-generator -- https://github.com/varlink/go-varlink
+
 package varlink
 
 type GetInfo_Out struct {

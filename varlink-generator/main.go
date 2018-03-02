@@ -75,6 +75,7 @@ func main() {
 	pkgname := strings.Replace(iface.Name, ".", "", -1)
 
 	var b bytes.Buffer
+	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go-varlink\n\n")
 	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString(`import "github.com/varlink/go-varlink"` + "\n\n")
 

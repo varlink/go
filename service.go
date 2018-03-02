@@ -128,7 +128,7 @@ func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
 	return ret[0].Interface().(error)
 }
 
-func IsActivated() bool {
+func isActivated() bool {
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
 	if err != nil || pid != os.Getpid() {
 		return false
@@ -145,7 +145,7 @@ func activationListener() net.Listener {
 	defer os.Unsetenv("LISTEN_PID")
 	defer os.Unsetenv("LISTEN_FDS")
 
-	if !IsActivated() {
+	if !isActivated() {
 		return nil
 	}
 
