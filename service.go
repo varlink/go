@@ -164,7 +164,7 @@ func (this *Service) registerInterface(iface Interface) {
 	this.services[name] = iface
 }
 
-func (this *Service) HandleMessage(writer *Writer, request []byte) error {
+func (this *Service) HandleMessage(request []byte, out *Writer) error {
 	var call ServerCall
 
 	err := json.Unmarshal(request, &call)
@@ -175,7 +175,7 @@ func (this *Service) HandleMessage(writer *Writer, request []byte) error {
 
 	r := strings.LastIndex(call.Method, ".")
 	if r <= 0 {
-		return InvalidParameter("method", writer)
+		return InvalidParameter("method", out)
 	}
 
 	interfacename := call.Method[:r]
@@ -183,10 +183,12 @@ func (this *Service) HandleMessage(writer *Writer, request []byte) error {
 	_, ok := this.services[interfacename]
 
 	if !ok {
-		return InterfaceNotFound(interfacename, writer)
+		return InterfaceNotFound(interfacename, out)
 	}
-
-	return this.services[interfacename].Handle(methodname, call, writer)
+	if !this.IsMethod(methodname) {
+		return MethodNotFound(methodname, out)
+	}
+	return this.services[interfacename].Handle(methodname, call, out)
 }
 
 func activationListener() net.Listener {
@@ -259,7 +261,7 @@ func (this *Service) Run(address string) error {
 				break
 			}
 
-			err = this.HandleMessage(&writer, request[:len(request)-1])
+			err = this.HandleMessage(request[:len(request)-1], &writer)
 			if err != nil {
 				break
 			}
@@ -286,6 +288,7 @@ func NewService(vendor string, product string, version string, url string, iface
 		InterfaceImpl: InterfaceImpl{
 			Name:        "org.varlink.service",
 			Description: OrgVarlinkService,
+			Methods:     []string{"GetInfo", "GetDescription"},
 		},
 		vendor:   vendor,
 		product:  product,

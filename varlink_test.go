@@ -21,12 +21,12 @@ func TestNewService(t *testing.T) {
 	)
 	var b bytes.Buffer
 	writer := NewWriter(bufio.NewWriter(&b))
-	err := service.HandleMessage(&writer, []byte{0})
+	err := service.HandleMessage([]byte{0}, &writer)
 	if err == nil {
 		t.Fatal("HandleMessage returned non-error")
 	}
 	msg := []byte("{\"method\":\"org.varlink.service.GetInfo\"}")
-	err = service.HandleMessage(&writer, msg)
+	err = service.HandleMessage(msg, &writer)
 	if err != nil {
 		fmt.Println(err)
 		t.Fatal("HandleMessage returned error")

@@ -3,6 +3,7 @@ package varlink
 import (
 	"bufio"
 	"encoding/json"
+	"sort"
 )
 
 type Interface interface {
@@ -14,6 +15,8 @@ type Interface interface {
 type InterfaceImpl struct {
 	Name        string
 	Description string
+	Methods     []string
+	sorted      bool
 }
 
 func (this *InterfaceImpl) GetName() string {
@@ -22,6 +25,19 @@ func (this *InterfaceImpl) GetName() string {
 
 func (this *InterfaceImpl) GetDescription() string {
 	return this.Description
+}
+
+func (this *InterfaceImpl) IsMethod(methodname string) bool {
+	if !this.sorted {
+		sort.Strings(this.Methods)
+		this.sorted = true
+	}
+	i := sort.Search(len(this.Methods),
+		func(i int) bool { return this.Methods[i] >= methodname })
+	if i < len(this.Methods) && this.Methods[i] == methodname {
+		return true
+	}
+	return false
 }
 
 type ServerCall struct {
