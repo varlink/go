@@ -182,7 +182,7 @@ func (this *Service) HandleMessage(request []byte, out *Writer) error {
 
 	v := reflect.ValueOf(this.services[interfacename]).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
-		return MethodNotFound(methodname, out)
+		return MethodNotImplemented(methodname, out)
 	}
 
 	args := []reflect.Value{
