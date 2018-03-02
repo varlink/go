@@ -49,13 +49,19 @@ func (this *Service) GetInterfaceDescription(ctx Context) error {
 	var in GetInterfaceDescription_In
 	err := ctx.Args(&in)
 	if err != nil {
-		return InvalidParameter(ctx, "parameters")
+		return ctx.Reply(&ServerOut{
+			Error:      "org.varlink.service.InvalidParameter",
+			Parameters: InvalidParameter_Error{Parameter: "interface"},
+		})
 	}
 
 	ifacep, ok := this.services[in.Interface]
 	ifacen := ifacep.(Interface)
 	if !ok {
-		return InvalidParameter(ctx, "Name")
+		return ctx.Reply(&ServerOut{
+			Error:      "org.varlink.service.InvalidParameter",
+			Parameters: InvalidParameter_Error{Parameter: "description"},
+		})
 	}
 
 	return ctx.Reply(&ServerOut{
@@ -79,7 +85,10 @@ func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
 	ctx.call = &call
 	r := strings.LastIndex(call.Method, ".")
 	if r <= 0 {
-		return InvalidParameter(&ctx, "method")
+		return ctx.Reply(&ServerOut{
+			Error:      "org.varlink.service.InvalidParameter",
+			Parameters: InvalidParameter_Error{Parameter: "method"},
+		})
 	}
 
 	interfacename := call.Method[:r]
@@ -87,15 +96,24 @@ func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
 	_, ok := this.services[interfacename]
 
 	if !ok {
-		return InterfaceNotFound(&ctx, interfacename)
+		return ctx.Reply(&ServerOut{
+			Error:      "org.varlink.service.InterfaceNotFound",
+			Parameters: InterfaceNotFound_Error{Interface: interfacename},
+		})
 	}
 	if !this.services[interfacename].IsMethod(methodname) {
-		return MethodNotFound(&ctx, methodname)
+		return ctx.Reply(&ServerOut{
+			Error:      "org.varlink.service.MethodNotFound",
+			Parameters: MethodNotFound_Error{Method: methodname},
+		})
 	}
 
 	v := reflect.ValueOf(this.services[interfacename]).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
-		return MethodNotImplemented(&ctx, methodname)
+		return ctx.Reply(&ServerOut{
+			Error:      "org.varlink.service.MethodNotImplemented",
+			Parameters: MethodNotImplemented_Error{Method: methodname},
+		})
 	}
 
 	args := []reflect.Value{
