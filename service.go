@@ -104,7 +104,7 @@ type Service struct {
 	quit     bool
 }
 
-func (this *Service) GetInfo(call ServerCall, out *Writer) error {
+func (this *Service) GetInfo(call *ServerCall, out *Writer) error {
 	type ReplyParameters struct {
 		Vendor     string   `json:"vendor"`
 		Product    string   `json:"product"`
@@ -124,7 +124,7 @@ func (this *Service) GetInfo(call ServerCall, out *Writer) error {
 	})
 }
 
-func (this *Service) GetInterfaceDescription(call ServerCall, out *Writer) error {
+func (this *Service) GetInterfaceDescription(call *ServerCall, out *Writer) error {
 	type CallParameters struct {
 		Name string `json:"interface"`
 	}
@@ -186,7 +186,7 @@ func (this *Service) HandleMessage(request []byte, out *Writer) error {
 	}
 
 	args := []reflect.Value{
-		reflect.ValueOf(call),
+		reflect.ValueOf(&call),
 		reflect.ValueOf(out),
 	}
 	ret := v.Call(args)
