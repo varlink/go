@@ -93,15 +93,19 @@ func main() {
 
 	b.WriteString("const InterfaceName string = \"" + iface.Name + "\"\n\n")
 	b.WriteString("const InterfaceDescription string = `\n" + iface.Description + "\n`\n")
-	b.WriteString("func NewInterfaceDefinition() varlink.InterfaceDefinition {\n	return varlink.InterfaceDefinition{\n		Name:        InterfaceName,\n		Description: InterfaceDescription,\n		Methods: []string{\n")
+	b.WriteString("func NewInterfaceDefinition() varlink.InterfaceDefinition {\n" +
+		"\treturn varlink.InterfaceDefinition{\n" +
+		"\t\tName:        InterfaceName,\n" +
+		"\t\tDescription: InterfaceDescription,\n" +
+		"\t\tMethods: []string{\n")
 	for _, member := range iface.Members {
 		switch member.(type) {
 		case *varlink.MethodT:
 			method := member.(*varlink.MethodT)
-			b.WriteString(`			"` + method.Name + `",` + "\n")
+			b.WriteString(`\t\t\t"` + method.Name + `",` + "\n")
 		}
 	}
-	b.WriteString("		},\n	}\n}\n")
+	b.WriteString("\t\t},\n\t}\n}\n")
 
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
 	err = ioutil.WriteFile(filename, b.Bytes(), 0660)
