@@ -253,7 +253,11 @@ func (this *Service) Run(address string) error {
 	var l net.Listener
 	l = activationListener()
 	if l == nil {
-		l, _ = net.Listen(protocol, addr)
+		var err error
+		l, err = net.Listen(protocol, addr)
+		if err != nil {
+			return err
+		}
 	}
 	defer l.Close()
 	this.quit = false
