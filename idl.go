@@ -31,30 +31,30 @@ type TypeField struct {
 	Type *Type
 }
 
-type Idl struct {
+type IDL struct {
 	Name        string
 	Doc         string
 	Description string
 	Members     []interface{}
-	Aliases     map[string]*IdlType
-	Methods     map[string]*IdlMethod
-	Errors      map[string]*IdlError
+	Aliases     map[string]*IDLType
+	Methods     map[string]*IDLMethod
+	Errors      map[string]*IDLError
 }
 
-type IdlType struct {
+type IDLType struct {
 	Name string
 	Doc  string
 	Type *Type
 }
 
-type IdlMethod struct {
+type IDLMethod struct {
 	Name string
 	Doc  string
 	In   *Type
 	Out  *Type
 }
 
-type IdlError struct {
+type IDLError struct {
 	Name string
 	Type *Type
 }
@@ -301,16 +301,16 @@ func (p *parser) readType() *Type {
 	return t
 }
 
-func (p *parser) readIdl() (*Idl, error) {
+func (p *parser) readIDL() (*IDL, error) {
 	if keyword := p.readKeyword(); keyword != "interface" {
 		return nil, fmt.Errorf("missing interface keyword")
 	}
 
-	idl := &Idl{
+	idl := &IDL{
 		Members: make([]interface{}, 0),
-		Aliases: make(map[string]*IdlType),
-		Methods: make(map[string]*IdlMethod),
-		Errors:  make(map[string]*IdlError),
+		Aliases: make(map[string]*IDLType),
+		Methods: make(map[string]*IDLMethod),
+		Errors:  make(map[string]*IDLError),
 	}
 
 	p.advance()
@@ -327,7 +327,7 @@ func (p *parser) readIdl() (*Idl, error) {
 
 		switch keyword := p.readKeyword(); keyword {
 		case "type":
-			alias := &IdlType{}
+			alias := &IDLType{}
 
 			p.advance()
 			alias.Doc = p.lastComment.String()
@@ -346,7 +346,7 @@ func (p *parser) readIdl() (*Idl, error) {
 			idl.Aliases[alias.Name] = alias
 
 		case "method":
-			method := &IdlMethod{}
+			method := &IDLMethod{}
 
 			p.advance()
 			method.Doc = p.lastComment.String()
@@ -378,7 +378,7 @@ func (p *parser) readIdl() (*Idl, error) {
 			idl.Methods[method.Name] = method
 
 		case "error":
-			err := &IdlError{}
+			err := &IDLError{}
 
 			p.advance()
 			err.Name = p.readTypeName()
@@ -400,11 +400,11 @@ func (p *parser) readIdl() (*Idl, error) {
 	return idl, nil
 }
 
-func NewIdl(description string) (*Idl, error) {
+func NewIDL(description string) (*IDL, error) {
 	p := &parser{input: description}
 
 	p.advance()
-	idl, err := p.readIdl()
+	idl, err := p.readIDL()
 	if err != nil {
 		return nil, err
 	}

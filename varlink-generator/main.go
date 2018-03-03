@@ -85,7 +85,7 @@ func main() {
 	}
 
 	description := strings.TrimRight(string(file), "\n")
-	idl, err := varlink.NewIdl(description)
+	idl, err := varlink.NewIDL(description)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -99,17 +99,17 @@ func main() {
 
 	for _, member := range idl.Members {
 		switch member.(type) {
-		case *varlink.IdlType:
-			alias := member.(*varlink.IdlType)
+		case *varlink.IDLType:
+			alias := member.(*varlink.IDLType)
 			writeType(&b, alias.Name, alias.Type)
 
-		case *varlink.IdlMethod:
-			method := member.(*varlink.IdlMethod)
+		case *varlink.IDLMethod:
+			method := member.(*varlink.IDLMethod)
 			writeType(&b, method.Name+"_In", method.In)
 			writeType(&b, method.Name+"_Out", method.Out)
 
-		case *varlink.IdlError:
-			err := member.(*varlink.IdlError)
+		case *varlink.IDLError:
+			err := member.(*varlink.IDLError)
 			writeType(&b, err.Name+"_Error", err.Type)
 		}
 	}
@@ -121,8 +121,8 @@ func main() {
 		"\t\tMethods: map[string]struct{}{\n")
 	for _, member := range idl.Members {
 		switch member.(type) {
-		case *varlink.IdlMethod:
-			method := member.(*varlink.IdlMethod)
+		case *varlink.IDLMethod:
+			method := member.(*varlink.IDLMethod)
 			b.WriteString("\t\t\t\"" + method.Name + `": {},` + "\n")
 		}
 	}
