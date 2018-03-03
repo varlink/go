@@ -33,8 +33,8 @@ type Service struct {
 	quit     bool
 }
 
-func (this *Service) GetInfo(ctx Context) error {
-	return ctx.Reply(&ServerOut{
+func (this *Service) GetInfo(call Call) error {
+	return call.Reply(&ServerOut{
 		Parameters: GetInfo_Out{
 			Vendor:     this.vendor,
 			Product:    this.product,
@@ -45,20 +45,20 @@ func (this *Service) GetInfo(ctx Context) error {
 	})
 }
 
-func (this *Service) GetInterfaceDescription(ctx Context) error {
+func (this *Service) GetInterfaceDescription(call Call) error {
 	var in GetInterfaceDescription_In
-	err := ctx.Parameters(&in)
+	err := call.Parameters(&in)
 	if err != nil {
-		return ctx.ReplyError( "org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"});
+		return call.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
 	}
 
 	ifacep, ok := this.services[in.Interface]
 	ifacen := ifacep.(Interface)
 	if !ok {
-		return ctx.ReplyError( "org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
+		return call.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
 	}
 
-	return ctx.Reply(&ServerOut{
+	return call.Reply(&ServerOut{
 		Parameters: GetInterfaceDescription_Out{ifacen.GetDescription()},
 	})
 }
@@ -68,22 +68,22 @@ func (this *Service) registerInterface(iface Interface) {
 	this.services[name] = iface
 }
 
-func (this *Service) HandleMessage(ctx ContextImpl, request []byte) error {
-	var call ServerIn
+func (this *Service) HandleMessage(ctx context, request []byte) error {
+	var in ServerIn
 
-	err := json.Unmarshal(request, &call)
+	err := json.Unmarshal(request, &in)
 
 	if err != nil {
 		return err
 	}
-	ctx.call = &call
-	r := strings.LastIndex(call.Method, ".")
+	ctx.in = &in
+	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {
 		return ctx.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "method"})
 	}
 
-	interfacename := call.Method[:r]
-	methodname := call.Method[r+1:]
+	interfacename := in.Method[:r]
+	methodname := in.Method[r+1:]
 	_, ok := this.services[interfacename]
 
 	if !ok {
@@ -183,7 +183,7 @@ func (this *Service) Run(address string) error {
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
-		context := ContextImpl{writer: bufio.NewWriter(conn)}
+		ctx := context{writer: bufio.NewWriter(conn)}
 
 		for !this.quit {
 			request, err := reader.ReadBytes('\x00')
@@ -191,7 +191,7 @@ func (this *Service) Run(address string) error {
 				break
 			}
 
-			err = this.HandleMessage(context, request[:len(request)-1])
+			err = this.HandleMessage(ctx, request[:len(request)-1])
 			if err != nil {
 				break
 			}

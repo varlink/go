@@ -6,31 +6,31 @@ import (
 	"fmt"
 )
 
-type Context interface {
+type Call interface {
 	WantMore() bool
 	Parameters(in interface{}) error
 	Reply(out *ServerOut) error
 	ReplyError(name string, parameters interface{}) error
 }
 
-type ContextImpl struct {
-	Context
+type context struct {
+	Call
 	writer *bufio.Writer
-	call   *ServerIn
+	in     *ServerIn
 }
 
-func (this *ContextImpl) WantMore() bool {
-	return this.call.More
+func (this *context) WantMore() bool {
+	return this.in.More
 }
 
-func (this *ContextImpl) Parameters(in interface{}) error {
-	if this.call.Parameters == nil {
+func (this *context) Parameters(in interface{}) error {
+	if this.in.Parameters == nil {
 		return fmt.Errorf("Empty Parameters")
 	}
-	return json.Unmarshal(*this.call.Parameters, in)
+	return json.Unmarshal(*this.in.Parameters, in)
 }
 
-func (this *ContextImpl) Reply(out *ServerOut) error {
+func (this *context) Reply(out *ServerOut) error {
 	b, e := json.Marshal(out)
 	if e != nil {
 		return e
@@ -44,7 +44,7 @@ func (this *ContextImpl) Reply(out *ServerOut) error {
 	return this.writer.Flush()
 }
 
-func (this *ContextImpl) ReplyError(name string, parameters interface{}) error {
+func (this *context) ReplyError(name string, parameters interface{}) error {
 	return this.Reply(&ServerOut{
 		Error:      name,
 		Parameters: parameters,

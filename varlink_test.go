@@ -20,13 +20,13 @@ func TestNewService(t *testing.T) {
 		ifaces,
 	)
 	var b bytes.Buffer
-	context := ContextImpl{writer: bufio.NewWriter(&b)}
-	err := service.HandleMessage(context, []byte{0})
+	ctx := context{writer: bufio.NewWriter(&b)}
+	err := service.HandleMessage(ctx, []byte{0})
 	if err == nil {
 		t.Fatal("HandleMessage returned non-error")
 	}
 	msg := []byte(`{"method":"org.varlink.service.GetInfo"}`)
-	err = service.HandleMessage(context, msg)
+	err = service.HandleMessage(ctx, msg)
 	if err != nil {
 		fmt.Println(err)
 		t.Fatal("HandleMessage returned error")
