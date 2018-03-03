@@ -27,7 +27,7 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 	case varlink.Float:
 		b.WriteString("float64")
 
-	case varlink.String:
+	case varlink.String, varlink.Enum:
 		b.WriteString("string")
 
 	case varlink.Array:
@@ -49,7 +49,11 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 		name := strings.Title(field.Name)
 		b.WriteString("\t" + name + " ")
 		writeType(b, field.Type)
-		b.WriteString(" `json:\"" + field.Name + ",omitempty\"`\n")
+		b.WriteString(" `json:\"" + field.Name)
+		if field.Type.Kind == varlink.Struct || field.Type.Kind == varlink.String || field.Type.Kind == varlink.Enum {
+			b.WriteString(",omitempty")
+		}
+		b.WriteString("\"`\n")
 	}
 	b.WriteString("}\n\n")
 }
