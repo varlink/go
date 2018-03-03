@@ -8,8 +8,9 @@ import (
 
 type Context interface {
 	WantMore() bool
-	Args(in interface{}) error
-	Reply(reply *ServerOut) error
+	Parameters(in interface{}) error
+	Reply(out *ServerOut) error
+	ReplyError(name string, parameters interface{}) error
 }
 
 type ContextImpl struct {
@@ -22,15 +23,15 @@ func (this *ContextImpl) WantMore() bool {
 	return this.call.More
 }
 
-func (this *ContextImpl) Args(in interface{}) error {
+func (this *ContextImpl) Parameters(in interface{}) error {
 	if this.call.Parameters == nil {
 		return fmt.Errorf("Empty Parameters")
 	}
 	return json.Unmarshal(*this.call.Parameters, in)
 }
 
-func (this *ContextImpl) Reply(reply *ServerOut) error {
-	b, e := json.Marshal(reply)
+func (this *ContextImpl) Reply(out *ServerOut) error {
+	b, e := json.Marshal(out)
 	if e != nil {
 		return e
 	}
@@ -41,4 +42,11 @@ func (this *ContextImpl) Reply(reply *ServerOut) error {
 		return e
 	}
 	return this.writer.Flush()
+}
+
+func (this *ContextImpl) ReplyError(name string, parameters interface{}) error {
+	return this.Reply(&ServerOut{
+		Error:      name,
+		Parameters: parameters,
+	})
 }
