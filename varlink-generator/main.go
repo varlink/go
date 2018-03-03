@@ -16,7 +16,7 @@ func help(name string) {
 	os.Exit(1)
 }
 
-func writeType(b *bytes.Buffer, t *varlink.Type) {
+func writeTypeString(b *bytes.Buffer, t *varlink.Type) {
 	switch t.Kind {
 	case varlink.Bool:
 		b.WriteString("bool")
@@ -32,7 +32,7 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 
 	case varlink.Array:
 		b.WriteString("[]")
-		writeType(b, t.ElementType)
+		writeTypeString(b, t.ElementType)
 
 	case varlink.Alias:
 		b.WriteString(t.Alias)
@@ -44,13 +44,13 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 				b.WriteString("; ")
 			}
 			b.WriteString(field.Name + " ")
-			writeType(b, field.Type)
+			writeTypeString(b, field.Type)
 		}
 		b.WriteString("}")
 	}
 }
 
-func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
+func writeType(b *bytes.Buffer, name string, t *varlink.Type) {
 	if len(t.Fields) == 0 {
 		return
 	}
@@ -59,7 +59,7 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 	for _, field := range t.Fields {
 		name := strings.Title(field.Name)
 		b.WriteString("\t" + name + " ")
-		writeType(b, field.Type)
+		writeTypeString(b, field.Type)
 		b.WriteString(" `json:\"" + field.Name)
 
 		switch field.Type.Kind {
@@ -101,16 +101,16 @@ func main() {
 		switch member.(type) {
 		case *varlink.IdlType:
 			alias := member.(*varlink.IdlType)
-			writeTypeDecl(&b, alias.Name, alias.Type)
+			writeType(&b, alias.Name, alias.Type)
 
 		case *varlink.IdlMethod:
 			method := member.(*varlink.IdlMethod)
-			writeTypeDecl(&b, method.Name+"_In", method.In)
-			writeTypeDecl(&b, method.Name+"_Out", method.Out)
+			writeType(&b, method.Name+"_In", method.In)
+			writeType(&b, method.Name+"_Out", method.Out)
 
 		case *varlink.IdlError:
 			err := member.(*varlink.IdlError)
-			writeTypeDecl(&b, err.Name+"_Error", err.Type)
+			writeType(&b, err.Name+"_Error", err.Type)
 		}
 	}
 
