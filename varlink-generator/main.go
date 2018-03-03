@@ -36,6 +36,17 @@ func writeType(b *bytes.Buffer, t *varlink.Type) {
 
 	case varlink.Alias:
 		b.WriteString(t.Alias)
+
+	case varlink.Struct:
+		b.WriteString("struct {")
+		for i, field := range t.Fields {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			b.WriteString(field.Name + " ")
+			writeType(b, field.Type)
+		}
+		b.WriteString("}")
 	}
 }
 
@@ -50,9 +61,12 @@ func writeTypeDecl(b *bytes.Buffer, name string, t *varlink.Type) {
 		b.WriteString("\t" + name + " ")
 		writeType(b, field.Type)
 		b.WriteString(" `json:\"" + field.Name)
-		if field.Type.Kind == varlink.Struct || field.Type.Kind == varlink.String || field.Type.Kind == varlink.Enum {
+
+		switch field.Type.Kind {
+		case varlink.Struct, varlink.String, varlink.Enum, varlink.Array:
 			b.WriteString(",omitempty")
 		}
+
 		b.WriteString("\"`\n")
 	}
 	b.WriteString("}\n\n")

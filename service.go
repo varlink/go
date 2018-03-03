@@ -234,11 +234,11 @@ func (this *Service) Run(address string) error {
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	r := Service{
 		InterfaceDefinition: NewInterfaceDefinition(),
-		vendor:   vendor,
-		product:  product,
-		version:  version,
-		url:      url,
-		services: make(map[string]Interface),
+		vendor:              vendor,
+		product:             product,
+		version:             version,
+		url:                 url,
+		services:            make(map[string]Interface),
 	}
 
 	// Register ourselves

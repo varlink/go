@@ -3,10 +3,10 @@
 package varlink
 
 type GetInfo_Out struct {
-	Vendor string `json:"vendor,omitempty"`
-	Product string `json:"product,omitempty"`
-	Version string `json:"version,omitempty"`
-	Url string `json:"url,omitempty"`
+	Vendor     string   `json:"vendor,omitempty"`
+	Product    string   `json:"product,omitempty"`
+	Version    string   `json:"version,omitempty"`
+	Url        string   `json:"url,omitempty"`
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
@@ -36,7 +36,7 @@ type InvalidParameter_Error struct {
 
 func NewInterfaceDefinition() InterfaceDefinition {
 	return InterfaceDefinition{
-		Name:        `org.varlink.service`,
+		Name: `org.varlink.service`,
 		Description: `# The Varlink Service Interface is provided by every varlink service. It
 # describes the service and the interfaces it implements.
 interface org.varlink.service
@@ -67,7 +67,7 @@ error MethodNotImplemented (method: string)
 # One of the passed parameters is invalid.
 error InvalidParameter (parameter: string)`,
 		Methods: map[string]bool{
-			"GetInfo": true,
+			"GetInfo":                 true,
 			"GetInterfaceDescription": true,
 		},
 	}

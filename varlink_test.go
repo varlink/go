@@ -10,7 +10,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	ifaces := []Interface{
-		// list own interface here
+	// list own interface here
 	}
 	service := NewService(
 		"Varlink Test",
