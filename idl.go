@@ -31,30 +31,30 @@ type TypeField struct {
 	Type *Type
 }
 
-type InterfaceT struct {
+type Idl struct {
 	Name        string
 	Doc         string
 	Description string
 	Members     []interface{}
-	Aliases     map[string]*TypeAlias
-	Methods     map[string]*MethodT
-	Errors      map[string]*ErrorType
+	Aliases     map[string]*IdlType
+	Methods     map[string]*IdlMethod
+	Errors      map[string]*IdlError
 }
 
-type TypeAlias struct {
+type IdlType struct {
 	Name string
 	Doc  string
 	Type *Type
 }
 
-type MethodT struct {
+type IdlMethod struct {
 	Name string
 	Doc  string
 	In   *Type
 	Out  *Type
 }
 
-type ErrorType struct {
+type IdlError struct {
 	Name string
 	Type *Type
 }
@@ -301,22 +301,22 @@ func (p *parser) readType() *Type {
 	return t
 }
 
-func (p *parser) readInterface() (*InterfaceT, error) {
+func (p *parser) readIdl() (*Idl, error) {
 	if keyword := p.readKeyword(); keyword != "interface" {
 		return nil, fmt.Errorf("missing interface keyword")
 	}
 
-	iface := &InterfaceT{
+	idl := &Idl{
 		Members: make([]interface{}, 0),
-		Aliases: make(map[string]*TypeAlias),
-		Methods: make(map[string]*MethodT),
-		Errors:  make(map[string]*ErrorType),
+		Aliases: make(map[string]*IdlType),
+		Methods: make(map[string]*IdlMethod),
+		Errors:  make(map[string]*IdlError),
 	}
 
 	p.advance()
-	iface.Doc = p.lastComment.String()
-	iface.Name = p.readInterfaceName()
-	if iface.Name == "" {
+	idl.Doc = p.lastComment.String()
+	idl.Name = p.readInterfaceName()
+	if idl.Name == "" {
 		return nil, fmt.Errorf("interface name")
 	}
 
@@ -327,7 +327,7 @@ func (p *parser) readInterface() (*InterfaceT, error) {
 
 		switch keyword := p.readKeyword(); keyword {
 		case "type":
-			alias := &TypeAlias{}
+			alias := &IdlType{}
 
 			p.advance()
 			alias.Doc = p.lastComment.String()
@@ -342,11 +342,11 @@ func (p *parser) readInterface() (*InterfaceT, error) {
 				return nil, fmt.Errorf("missing alias type")
 			}
 
-			iface.Members = append(iface.Members, alias)
-			iface.Aliases[alias.Name] = alias
+			idl.Members = append(idl.Members, alias)
+			idl.Aliases[alias.Name] = alias
 
 		case "method":
-			method := &MethodT{}
+			method := &IdlMethod{}
 
 			p.advance()
 			method.Doc = p.lastComment.String()
@@ -374,11 +374,11 @@ func (p *parser) readInterface() (*InterfaceT, error) {
 				return nil, fmt.Errorf("missing method output")
 			}
 
-			iface.Members = append(iface.Members, method)
-			iface.Methods[method.Name] = method
+			idl.Members = append(idl.Members, method)
+			idl.Methods[method.Name] = method
 
 		case "error":
-			err := &ErrorType{}
+			err := &IdlError{}
 
 			p.advance()
 			err.Name = p.readTypeName()
@@ -389,22 +389,22 @@ func (p *parser) readInterface() (*InterfaceT, error) {
 			p.advanceOnLine()
 			err.Type = p.readType()
 
-			iface.Members = append(iface.Members, err)
-			iface.Errors[err.Name] = err
+			idl.Members = append(idl.Members, err)
+			idl.Errors[err.Name] = err
 
 		default:
 			return nil, fmt.Errorf("unknown keyword '%s'", keyword)
 		}
 	}
 
-	return iface, nil
+	return idl, nil
 }
 
-func ParseInterface(description string) (*InterfaceT, error) {
+func NewIdl(description string) (*Idl, error) {
 	p := &parser{input: description}
 
 	p.advance()
-	iface, err := p.readInterface()
+	idl, err := p.readIdl()
 	if err != nil {
 		return nil, err
 	}
@@ -413,6 +413,6 @@ func ParseInterface(description string) (*InterfaceT, error) {
 		return nil, fmt.Errorf("advance error %s", p.input[p.position:])
 	}
 
-	iface.Description = description
-	return iface, nil
+	idl.Description = description
+	return idl, nil
 }

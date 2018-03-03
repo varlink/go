@@ -85,44 +85,44 @@ func main() {
 	}
 
 	description := strings.TrimRight(string(file), "\n")
-	iface, err := varlink.ParseInterface(description)
+	idl, err := varlink.NewIdl(description)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	pkgname := strings.Replace(iface.Name, ".", "", -1)
+	pkgname := strings.Replace(idl.Name, ".", "", -1)
 
 	var b bytes.Buffer
 	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go-varlink\n\n")
 	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString(`import "github.com/varlink/go-varlink"` + "\n\n")
 
-	for _, member := range iface.Members {
+	for _, member := range idl.Members {
 		switch member.(type) {
-		case *varlink.TypeAlias:
-			alias := member.(*varlink.TypeAlias)
+		case *varlink.IdlType:
+			alias := member.(*varlink.IdlType)
 			writeTypeDecl(&b, alias.Name, alias.Type)
 
-		case *varlink.MethodT:
-			method := member.(*varlink.MethodT)
+		case *varlink.IdlMethod:
+			method := member.(*varlink.IdlMethod)
 			writeTypeDecl(&b, method.Name+"_In", method.In)
 			writeTypeDecl(&b, method.Name+"_Out", method.Out)
 
-		case *varlink.ErrorType:
-			err := member.(*varlink.ErrorType)
+		case *varlink.IdlError:
+			err := member.(*varlink.IdlError)
 			writeTypeDecl(&b, err.Name+"_Error", err.Type)
 		}
 	}
 
 	b.WriteString("func NewInterfaceDefinition() varlink.InterfaceDefinition {\n" +
 		"\treturn varlink.InterfaceDefinition{\n" +
-		"\t\tName:        `" + iface.Name + "`,\n" +
-		"\t\tDescription: `" + iface.Description + "`,\n" +
+		"\t\tName:        `" + idl.Name + "`,\n" +
+		"\t\tDescription: `" + idl.Description + "`,\n" +
 		"\t\tMethods: map[string]bool{\n")
-	for _, member := range iface.Members {
+	for _, member := range idl.Members {
 		switch member.(type) {
-		case *varlink.MethodT:
-			method := member.(*varlink.MethodT)
+		case *varlink.IdlMethod:
+			method := member.(*varlink.IdlMethod)
 			b.WriteString("\t\t\t\"" + method.Name + `": true,` + "\n")
 		}
 	}
