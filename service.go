@@ -47,7 +47,7 @@ func (this *Service) GetInfo(call Call) error {
 
 func (this *Service) GetInterfaceDescription(call Call) error {
 	var in GetInterfaceDescription_In
-	err := call.Parameters(&in)
+	err := call.GetParameters(&in)
 	if err != nil {
 		return call.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
 	}

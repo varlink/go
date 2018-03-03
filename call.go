@@ -8,7 +8,7 @@ import (
 
 type Call interface {
 	WantMore() bool
-	Parameters(in interface{}) error
+	GetParameters(in interface{}) error
 	Reply(out *ServerOut) error
 	ReplyError(name string, parameters interface{}) error
 }
@@ -19,11 +19,11 @@ type context struct {
 	in     *ServerIn
 }
 
-func (this *context) WantMore() bool {
+func (this *context) WantsMore() bool {
 	return this.in.More
 }
 
-func (this *context) Parameters(in interface{}) error {
+func (this *context) GetParameters(in interface{}) error {
 	if this.in.Parameters == nil {
 		return fmt.Errorf("Empty Parameters")
 	}
