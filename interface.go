@@ -13,15 +13,15 @@ type InterfaceDefinition struct {
 	Methods     map[string]struct{}
 }
 
-func (this *InterfaceDefinition) GetName() string {
-	return this.Name
+func (d *InterfaceDefinition) GetName() string {
+	return d.Name
 }
 
-func (this *InterfaceDefinition) GetDescription() string {
-	return this.Description
+func (d *InterfaceDefinition) GetDescription() string {
+	return d.Description
 }
 
-func (this *InterfaceDefinition) IsMethod(methodname string) bool {
-	_, ok := this.Methods[methodname]
+func (d *InterfaceDefinition) IsMethod(methodname string) bool {
+	_, ok := d.Methods[methodname]
 	return ok
 }

@@ -68,7 +68,6 @@ error MethodNotImplemented (method: string)
 error InvalidParameter (parameter: string)`,
 		Methods: map[string]struct{}{
 			"GetInfo":                 {},
-			"GetInterfaceDescription": {},
-		},
+			"GetInterfaceDescription": {}, },
 	}
 }

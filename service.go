@@ -33,42 +33,42 @@ type Service struct {
 	quit     bool
 }
 
-func (this *Service) GetInfo(call Call) error {
-	return call.Reply(&ServerOut{
+func (s *Service) GetInfo(c Call) error {
+	return c.Reply(&ServerOut{
 		Parameters: GetInfo_Out{
-			Vendor:     this.vendor,
-			Product:    this.product,
-			Version:    this.version,
-			Url:        this.url,
-			Interfaces: keyList(&this.services),
+			Vendor:     s.vendor,
+			Product:    s.product,
+			Version:    s.version,
+			Url:        s.url,
+			Interfaces: keyList(&s.services),
 		},
 	})
 }
 
-func (this *Service) GetInterfaceDescription(call Call) error {
+func (s *Service) GetInterfaceDescription(c Call) error {
 	var in GetInterfaceDescription_In
-	err := call.GetParameters(&in)
+	err := c.GetParameters(&in)
 	if err != nil {
-		return call.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
+		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
 	}
 
-	ifacep, ok := this.services[in.Interface]
+	ifacep, ok := s.services[in.Interface]
 	ifacen := ifacep.(Interface)
 	if !ok {
-		return call.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
+		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
 	}
 
-	return call.Reply(&ServerOut{
+	return c.Reply(&ServerOut{
 		Parameters: GetInterfaceDescription_Out{ifacen.GetDescription()},
 	})
 }
 
-func (this *Service) registerInterface(iface Interface) {
+func (s *Service) registerInterface(iface Interface) {
 	name := iface.GetName()
-	this.services[name] = iface
+	s.services[name] = iface
 }
 
-func (this *Service) HandleMessage(ctx context, request []byte) error {
+func (s *Service) HandleMessage(c serverCall, request []byte) error {
 	var in ServerIn
 
 	err := json.Unmarshal(request, &in)
@@ -76,30 +76,30 @@ func (this *Service) HandleMessage(ctx context, request []byte) error {
 	if err != nil {
 		return err
 	}
-	ctx.in = &in
+	c.in = &in
 	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {
-		return ctx.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "method"})
+		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "method"})
 	}
 
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
-	_, ok := this.services[interfacename]
+	_, ok := s.services[interfacename]
 
 	if !ok {
-		return ctx.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
+		return c.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
 	}
-	if !this.services[interfacename].IsMethod(methodname) {
-		return ctx.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
+	if !s.services[interfacename].IsMethod(methodname) {
+		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
 	}
 
-	v := reflect.ValueOf(this.services[interfacename]).MethodByName(methodname)
+	v := reflect.ValueOf(s.services[interfacename]).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
-		return ctx.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
+		return c.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
 	}
 
 	args := []reflect.Value{
-		reflect.ValueOf(&ctx),
+		reflect.ValueOf(&c),
 	}
 	ret := v.Call(args)
 
@@ -141,11 +141,11 @@ func activationListener() net.Listener {
 	return listener
 }
 
-func (this *Service) Stop() {
-	this.quit = true
+func (s *Service) Stop() {
+	s.quit = true
 }
 
-func (this *Service) Run(address string) error {
+func (s *Service) Run(address string) error {
 	words := strings.SplitN(address, ":", 2)
 	protocol := words[0]
 	addr := words[1]
@@ -179,32 +179,32 @@ func (this *Service) Run(address string) error {
 		}
 	}
 	defer l.Close()
-	this.quit = false
+	s.quit = false
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
-		ctx := context{writer: bufio.NewWriter(conn)}
+		c := serverCall{writer: bufio.NewWriter(conn)}
 
-		for !this.quit {
+		for !s.quit {
 			request, err := reader.ReadBytes('\x00')
 			if err != nil {
 				break
 			}
 
-			err = this.HandleMessage(ctx, request[:len(request)-1])
+			err = s.HandleMessage(c, request[:len(request)-1])
 			if err != nil {
 				break
 			}
 		}
 		conn.Close()
-		if this.quit {
+		if s.quit {
 			l.Close()
 		}
 	}
 
-	for !this.quit {
+	for !s.quit {
 		conn, err := l.Accept()
-		if err != nil && !this.quit {
+		if err != nil && !s.quit {
 			return err
 		}
 		go handleConnection(conn)

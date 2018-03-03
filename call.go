@@ -13,39 +13,39 @@ type Call interface {
 	ReplyError(name string, parameters interface{}) error
 }
 
-type context struct {
+type serverCall struct {
 	Call
 	writer *bufio.Writer
 	in     *ServerIn
 }
 
-func (this *context) WantsMore() bool {
-	return this.in.More
+func (c *serverCall) WantsMore() bool {
+	return c.in.More
 }
 
-func (this *context) GetParameters(in interface{}) error {
-	if this.in.Parameters == nil {
+func (c *serverCall) GetParameters(in interface{}) error {
+	if c.in.Parameters == nil {
 		return fmt.Errorf("Empty Parameters")
 	}
-	return json.Unmarshal(*this.in.Parameters, in)
+	return json.Unmarshal(*c.in.Parameters, in)
 }
 
-func (this *context) Reply(out *ServerOut) error {
+func (c *serverCall) Reply(out *ServerOut) error {
 	b, e := json.Marshal(out)
 	if e != nil {
 		return e
 	}
 
 	b = append(b, 0)
-	_, e = this.writer.Write(b)
+	_, e = c.writer.Write(b)
 	if e != nil {
 		return e
 	}
-	return this.writer.Flush()
+	return c.writer.Flush()
 }
 
-func (this *context) ReplyError(name string, parameters interface{}) error {
-	return this.Reply(&ServerOut{
+func (c *serverCall) ReplyError(name string, parameters interface{}) error {
+	return c.Reply(&ServerOut{
 		Error:      name,
 		Parameters: parameters,
 	})
