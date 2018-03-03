@@ -10,7 +10,7 @@ type InterfaceDefinition struct {
 	Interface
 	Name        string
 	Description string
-	Methods     map[string]bool
+	Methods     map[string]struct{}
 }
 
 func (this *InterfaceDefinition) GetName() string {

@@ -118,12 +118,12 @@ func main() {
 		"\treturn varlink.InterfaceDefinition{\n" +
 		"\t\tName:        `" + idl.Name + "`,\n" +
 		"\t\tDescription: `" + idl.Description + "`,\n" +
-		"\t\tMethods: map[string]bool{\n")
+		"\t\tMethods: map[string]struct{}{\n")
 	for _, member := range idl.Members {
 		switch member.(type) {
 		case *varlink.IdlMethod:
 			method := member.(*varlink.IdlMethod)
-			b.WriteString("\t\t\t\"" + method.Name + `": true,` + "\n")
+			b.WriteString("\t\t\t\"" + method.Name + `": {},` + "\n")
 		}
 	}
 	b.WriteString("\t\t},\n\t}\n}\n")
