@@ -119,12 +119,8 @@ func main() {
 		"\t\tName:        `" + idl.Name + "`,\n" +
 		"\t\tDescription: `" + idl.Description + "`,\n" +
 		"\t\tMethods: map[string]struct{}{\n")
-	for _, member := range idl.Members {
-		switch member.(type) {
-		case *varlink.IDLMethod:
-			method := member.(*varlink.IDLMethod)
-			b.WriteString("\t\t\t\"" + method.Name + `": {},` + "\n")
-		}
+	for m := range idl.Methods {
+		b.WriteString("\t\t\t\"" + m + `": {},` + "\n")
 	}
 	b.WriteString("\t\t},\n\t}\n}\n")
 
