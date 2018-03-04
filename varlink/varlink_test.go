@@ -16,7 +16,7 @@ func TestNewService(t *testing.T) {
 		"Varlink Test",
 		"Varlink Test",
 		"1",
-		"https://github.com/varlink/go-varlink",
+		"https://github.com/varlink/go/varlink",
 		ifaces,
 	)
 	var b bytes.Buffer
@@ -32,7 +32,7 @@ func TestNewService(t *testing.T) {
 		t.Fatal("HandleMessage returned error")
 	}
 	returned := b.String()
-	const expected = `{"parameters":{"vendor":"Varlink Test","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go-varlink","interfaces":["org.varlink.service"]}}` + "\000"
+	const expected = `{"parameters":{"vendor":"Varlink Test","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go/varlink","interfaces":["org.varlink.service"]}}` + "\000"
 	if strings.Compare(returned, expected) != 0 {
 		fmt.Println("Expected: \"" + expected + "\"")
 		fmt.Printf("Expected len: %d\n", len(expected))

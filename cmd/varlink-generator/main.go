@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/varlink/go-varlink"
+	"github.com/varlink/go/varlink"
 )
 
 func help(name string) {
@@ -93,9 +93,9 @@ func main() {
 	pkgname := strings.Replace(idl.Name, ".", "", -1)
 
 	var b bytes.Buffer
-	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go-varlink\n\n")
+	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator\n\n")
 	b.WriteString("package " + pkgname + "\n\n")
-	b.WriteString(`import "github.com/varlink/go-varlink"` + "\n\n")
+	b.WriteString(`import "github.com/varlink/go/varlink"` + "\n\n")
 
 	for _, member := range idl.Members {
 		switch member.(type) {

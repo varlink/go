@@ -1,4 +1,4 @@
-// Generated with varlink-generator -- https://github.com/varlink/go-varlink
+// Generated with varlink-generator -- https://github.com/varlink/go/
 
 package varlink
 
