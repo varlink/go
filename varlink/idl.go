@@ -6,66 +6,67 @@ import (
 	"strings"
 )
 
-// Valid TypeKind values used in the varlink Type.
+// Valid IDLTypeKind values used in the IDLType.
 const (
-	Bool = iota
-	Int
-	Float
-	String
-	Array
-	Struct
-	Enum
-	Alias
+	IDLTypeBool = iota
+	IDLTypeInt
+	IDLTypeFloat
+	IDLTypeString
+	IDLTypeArray
+	IDLTypeStruct
+	IDLTypeEnum
+	IDLTypeAlias
 )
 
-// TypeKind specifies the type used in the varlink interface description.
-type TypeKind uint
+// IDLTypeKind specifies the type used in the varlink interface description.
+type IDLTypeKind uint
 
-// Type represents a varlink type used in the varlink interface description. Varlink types types are
-// method input and output parameters, error output parameters, or custom defined types.
-type Type struct {
-	Kind        TypeKind
-	ElementType *Type
+// IDLType represents a varlink type. IDLTypes are method input and output parameters,
+// error output parameters, or custom defined types in the interface description.
+type IDLType struct {
+	Kind        IDLTypeKind
+	ElementType *IDLType
 	Alias       string
-	Fields      []TypeField
+	Fields      []IDLTypeField
 }
 
-// TypeField is a named member of a varlink Struct used in the varlink interface description.
-type TypeField struct {
+// IDLTypeField is a named member of a IDLTypeStruct.
+type IDLTypeField struct {
 	Name string
-	Type *Type
+	Type *IDLType
 }
 
-// IDL represents a parsed varlink interface description.
+// IDL represents a parsed varlink interface description with types, methods, errors and
+// documentation.
 type IDL struct {
 	Name        string
 	Doc         string
 	Description string
 	Members     []interface{}
-	Aliases     map[string]*IDLType
+	Aliases     map[string]*IDLAlias
 	Methods     map[string]*IDLMethod
 	Errors      map[string]*IDLError
 }
 
-// IDLType represents a custom defined type in the interface description.
-type IDLType struct {
+// IDLAlias represents a custom defined, named IDLType in the interface description.
+type IDLAlias struct {
 	Name string
 	Doc  string
-	Type *Type
+	Type *IDLType
 }
 
 // IDLMethod represents a method defined in the interface description.
 type IDLMethod struct {
 	Name string
 	Doc  string
-	In   *Type
-	Out  *Type
+	In   *IDLType
+	Out  *IDLType
 }
 
 // IDLError represents an error defined in the interface description.
 type IDLError struct {
 	Name string
-	Type *Type
+	Type *IDLType
 }
 
 type parser struct {
@@ -214,21 +215,21 @@ func (p *parser) readTypeName() string {
 	return p.input[start:p.position]
 }
 
-func (p *parser) readStructType() *Type {
+func (p *parser) readStructType() *IDLType {
 	if p.next() != '(' {
 		p.backup()
 		return nil
 	}
 
-	t := &Type{Kind: Struct}
-	t.Fields = make([]TypeField, 0)
+	t := &IDLType{Kind: IDLTypeStruct}
+	t.Fields = make([]IDLTypeField, 0)
 
 	char := p.next()
 	if char != ')' {
 		p.backup()
 
 		for {
-			field := TypeField{}
+			field := IDLTypeField{}
 
 			p.advance()
 			field.Name = p.readFieldName()
@@ -240,7 +241,7 @@ func (p *parser) readStructType() *Type {
 
 			// Enums have no types, they are just a list of names
 			if p.next() == ':' {
-				if t.Kind == Enum {
+				if t.Kind == IDLTypeEnum {
 					return nil
 				}
 
@@ -251,7 +252,7 @@ func (p *parser) readStructType() *Type {
 				}
 
 			} else {
-				t.Kind = Enum
+				t.Kind = IDLTypeEnum
 				p.backup()
 			}
 
@@ -272,26 +273,26 @@ func (p *parser) readStructType() *Type {
 	return t
 }
 
-func (p *parser) readType() *Type {
-	var t *Type
+func (p *parser) readType() *IDLType {
+	var t *IDLType
 
 	if keyword := p.readKeyword(); keyword != "" {
 		switch keyword {
 		case "bool":
-			t = &Type{Kind: Bool}
+			t = &IDLType{Kind: IDLTypeBool}
 
 		case "int":
-			t = &Type{Kind: Int}
+			t = &IDLType{Kind: IDLTypeInt}
 
 		case "float":
-			t = &Type{Kind: Float}
+			t = &IDLType{Kind: IDLTypeFloat}
 
 		case "string":
-			t = &Type{Kind: String}
+			t = &IDLType{Kind: IDLTypeString}
 		}
 
 	} else if name := p.readTypeName(); name != "" {
-		t = &Type{Kind: Alias, Alias: name}
+		t = &IDLType{Kind: IDLTypeAlias, Alias: name}
 
 	} else if t = p.readStructType(); t == nil {
 		return nil
@@ -301,7 +302,7 @@ func (p *parser) readType() *Type {
 		if p.next() != ']' {
 			return nil
 		}
-		t = &Type{Kind: Array, ElementType: t}
+		t = &IDLType{Kind: IDLTypeArray, ElementType: t}
 
 	} else {
 		p.backup()
@@ -310,8 +311,8 @@ func (p *parser) readType() *Type {
 	return t
 }
 
-func (p *parser) readIDLType(idl *IDL) (*IDLType, error) {
-	a := &IDLType{}
+func (p *parser) readIDLAlias(idl *IDL) (*IDLAlias, error) {
+	a := &IDLAlias{}
 
 	p.advance()
 	a.Doc = p.lastComment.String()
@@ -383,7 +384,7 @@ func (p *parser) readIDL() (*IDL, error) {
 
 	idl := &IDL{
 		Members: make([]interface{}, 0),
-		Aliases: make(map[string]*IDLType),
+		Aliases: make(map[string]*IDLAlias),
 		Methods: make(map[string]*IDLMethod),
 		Errors:  make(map[string]*IDLError),
 	}
@@ -402,7 +403,7 @@ func (p *parser) readIDL() (*IDL, error) {
 
 		switch keyword := p.readKeyword(); keyword {
 		case "type":
-			a, err := p.readIDLType(idl)
+			a, err := p.readIDLAlias(idl)
 			if err != nil {
 				return nil, err
 			}
@@ -436,7 +437,7 @@ func (p *parser) readIDL() (*IDL, error) {
 	return idl, nil
 }
 
-// NewIDL parses a varlink interface descrition.
+// NewIDL parses a varlink interface description.
 func NewIDL(description string) (*IDL, error) {
 	p := &parser{input: description}
 

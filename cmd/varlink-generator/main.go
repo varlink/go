@@ -16,28 +16,28 @@ func help(name string) {
 	os.Exit(1)
 }
 
-func writeTypeString(b *bytes.Buffer, t *varlink.Type) {
+func writeTypeString(b *bytes.Buffer, t *varlink.IDLType) {
 	switch t.Kind {
-	case varlink.Bool:
+	case varlink.IDLTypeBool:
 		b.WriteString("bool")
 
-	case varlink.Int:
+	case varlink.IDLTypeInt:
 		b.WriteString("int64")
 
-	case varlink.Float:
+	case varlink.IDLTypeFloat:
 		b.WriteString("float64")
 
-	case varlink.String, varlink.Enum:
+	case varlink.IDLTypeString, varlink.IDLTypeEnum:
 		b.WriteString("string")
 
-	case varlink.Array:
+	case varlink.IDLTypeArray:
 		b.WriteString("[]")
 		writeTypeString(b, t.ElementType)
 
-	case varlink.Alias:
+	case varlink.IDLTypeAlias:
 		b.WriteString(t.Alias)
 
-	case varlink.Struct:
+	case varlink.IDLTypeStruct:
 		b.WriteString("struct {")
 		for i, field := range t.Fields {
 			if i > 0 {
@@ -50,7 +50,7 @@ func writeTypeString(b *bytes.Buffer, t *varlink.Type) {
 	}
 }
 
-func writeType(b *bytes.Buffer, name string, t *varlink.Type) {
+func writeType(b *bytes.Buffer, name string, t *varlink.IDLType) {
 	if len(t.Fields) == 0 {
 		return
 	}
@@ -63,7 +63,7 @@ func writeType(b *bytes.Buffer, name string, t *varlink.Type) {
 		b.WriteString(" `json:\"" + field.Name)
 
 		switch field.Type.Kind {
-		case varlink.Struct, varlink.String, varlink.Enum, varlink.Array:
+		case varlink.IDLTypeStruct, varlink.IDLTypeString, varlink.IDLTypeEnum, varlink.IDLTypeArray:
 			b.WriteString(",omitempty")
 		}
 
@@ -99,8 +99,8 @@ func main() {
 
 	for _, member := range idl.Members {
 		switch member.(type) {
-		case *varlink.IDLType:
-			alias := member.(*varlink.IDLType)
+		case *varlink.IDLAlias:
+			alias := member.(*varlink.IDLAlias)
 			writeType(&b, alias.Name, alias.Type)
 
 		case *varlink.IDLMethod:
