@@ -8,14 +8,13 @@ import (
 
 // Call defines a method call retrieved by a Service or sent by a Client.
 type Call interface {
-	WantMore() bool
+	WantsMore() bool
 	GetParameters(in interface{}) error
 	Reply(out *ServiceOut) error
 	ReplyError(name string, parameters interface{}) error
 }
 
 type serviceCall struct {
-	Call
 	writer *bufio.Writer
 	in     *ServiceIn
 }

@@ -13,7 +13,6 @@ type Interface interface {
 // An InterfaceDefinition for a varlink interface might be created by running varlink-generator which
 // creates a .go file from a .varlink interface description file.
 type InterfaceDefinition struct {
-	Interface
 	Name        string
 	Description string
 	Methods     map[string]struct{}

@@ -88,6 +88,7 @@ func (s *Service) registerInterface(iface Interface) {
 }
 
 func (s *Service) handleMessage(c serviceCall, request []byte) error {
+	// c should be a fresh copy, because c.in is filled in for every message
 	var in ServiceIn
 
 	err := json.Unmarshal(request, &in)
