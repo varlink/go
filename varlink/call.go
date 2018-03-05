@@ -14,24 +14,24 @@ type Call interface {
 	ReplyError(name string, parameters interface{}) error
 }
 
-type serverCall struct {
+type serviceCall struct {
 	Call
 	writer *bufio.Writer
 	in     *ServiceIn
 }
 
-func (c *serverCall) WantsMore() bool {
+func (c *serviceCall) WantsMore() bool {
 	return c.in.More
 }
 
-func (c *serverCall) GetParameters(in interface{}) error {
+func (c *serviceCall) GetParameters(in interface{}) error {
 	if c.in.Parameters == nil {
 		return fmt.Errorf("Empty Parameters")
 	}
 	return json.Unmarshal(*c.in.Parameters, in)
 }
 
-func (c *serverCall) Reply(out *ServiceOut) error {
+func (c *serviceCall) Reply(out *ServiceOut) error {
 	b, e := json.Marshal(out)
 	if e != nil {
 		return e
@@ -45,7 +45,7 @@ func (c *serverCall) Reply(out *ServiceOut) error {
 	return c.writer.Flush()
 }
 
-func (c *serverCall) ReplyError(name string, parameters interface{}) error {
+func (c *serviceCall) ReplyError(name string, parameters interface{}) error {
 	return c.Reply(&ServiceOut{
 		Error:      name,
 		Parameters: parameters,

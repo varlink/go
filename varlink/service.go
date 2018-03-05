@@ -87,7 +87,7 @@ func (s *Service) registerInterface(iface Interface) {
 	s.services[name] = iface
 }
 
-func (s *Service) handleMessage(c serverCall, request []byte) error {
+func (s *Service) handleMessage(c serviceCall, request []byte) error {
 	var in ServiceIn
 
 	err := json.Unmarshal(request, &in)
@@ -203,7 +203,7 @@ func (s *Service) Run(address string) error {
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
-		c := serverCall{writer: bufio.NewWriter(conn)}
+		c := serviceCall{writer: bufio.NewWriter(conn)}
 
 		for !s.quit {
 			request, err := reader.ReadBytes('\x00')

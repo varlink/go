@@ -20,7 +20,7 @@ func TestNewService(t *testing.T) {
 		ifaces,
 	)
 	var b bytes.Buffer
-	c := serverCall{writer: bufio.NewWriter(&b)}
+	c := serviceCall{writer: bufio.NewWriter(&b)}
 	err := service.handleMessage(c, []byte{0})
 	if err == nil {
 		t.Fatal("HandleMessage returned non-error")
