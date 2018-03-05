@@ -58,7 +58,7 @@ func writeType(b *bytes.Buffer, name string, t *varlink.IDLType) {
 		b.WriteString(" `json:\"" + field.Name)
 
 		switch field.Type.Kind {
-		case varlink.IDLTypeStruct, varlink.IDLTypeString, varlink.IDLTypeEnum, varlink.IDLTypeArray:
+		case varlink.IDLTypeStruct, varlink.IDLTypeString, varlink.IDLTypeEnum, varlink.IDLTypeArray, varlink.IDLTypeAlias:
 			b.WriteString(",omitempty")
 		}
 
