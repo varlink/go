@@ -11,11 +11,6 @@ import (
 	"github.com/varlink/go/varlink"
 )
 
-func help(name string) {
-	fmt.Printf("Usage: %s <package> <file>\n", name)
-	os.Exit(1)
-}
-
 func writeTypeString(b *bytes.Buffer, t *varlink.IDLType) {
 	switch t.Kind {
 	case varlink.IDLTypeBool:
@@ -73,15 +68,17 @@ func writeType(b *bytes.Buffer, name string, t *varlink.IDLType) {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		help(os.Args[0])
+	if len(os.Args) != 2 {
+		fmt.Printf("Usage: %s <file>\n", os.Args[0])
+		os.Exit(1)
 	}
 
 	varlinkFile := os.Args[1]
 
 	file, err := ioutil.ReadFile(varlinkFile)
 	if err != nil {
-		fmt.Printf("Error reading file '%s': %s\n", varlinkFile, err)
+		fmt.Fprintf(os.Stderr, "Error reading file '%s': %s\n", varlinkFile, err)
+		os.Exit(1)
 	}
 
 	description := strings.TrimRight(string(file), "\n")
@@ -127,6 +124,7 @@ func main() {
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
 	err = ioutil.WriteFile(filename, b.Bytes(), 0660)
 	if err != nil {
-		fmt.Printf("Error writing file '%s': %s\n", filename, err)
+		fmt.Fprintf(os.Stderr, "Error writing file '%s': %s\n", filename, err)
+		os.Exit(1)
 	}
 }
