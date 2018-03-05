@@ -12,6 +12,20 @@ import (
 	"syscall"
 )
 
+// ServiceIn represents the incoming message received by the Service from a Client.
+type ServiceIn struct {
+	Method     string           `json:"method"`
+	Parameters *json.RawMessage `json:"parameters,omitempty"`
+	More       bool             `json:"more,omitempty"`
+}
+
+// ServiceIn represents the outgoing message sent by the service to a CLient.
+type ServiceOut struct {
+	Parameters interface{} `json:"parameters,omitempty"`
+	Continues  bool        `json:"continues,omitempty"`
+	Error      string      `json:"error,omitempty"`
+}
+
 func keyList(mymap *map[string]Interface) []string {
 	keys := make([]string, len(*mymap))
 
@@ -38,7 +52,7 @@ type Service struct {
 
 // GetInfo returns information about the running service.
 func (s *Service) GetInfo(c Call) error {
-	return c.Reply(&ServerOut{
+	return c.Reply(&ServiceOut{
 		Parameters: GetInfo_Out{
 			Vendor:     s.vendor,
 			Product:    s.product,
@@ -63,7 +77,7 @@ func (s *Service) GetInterfaceDescription(c Call) error {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
 	}
 
-	return c.Reply(&ServerOut{
+	return c.Reply(&ServiceOut{
 		Parameters: GetInterfaceDescription_Out{ifacen.GetDescription()},
 	})
 }
@@ -74,7 +88,7 @@ func (s *Service) registerInterface(iface Interface) {
 }
 
 func (s *Service) handleMessage(c serverCall, request []byte) error {
-	var in ServerIn
+	var in ServiceIn
 
 	err := json.Unmarshal(request, &in)
 

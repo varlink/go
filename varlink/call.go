@@ -6,18 +6,18 @@ import (
 	"fmt"
 )
 
-// Call defines a method call retrieved by a Server or sent by a Client.
+// Call defines a method call retrieved by a Service or sent by a Client.
 type Call interface {
 	WantMore() bool
 	GetParameters(in interface{}) error
-	Reply(out *ServerOut) error
+	Reply(out *ServiceOut) error
 	ReplyError(name string, parameters interface{}) error
 }
 
 type serverCall struct {
 	Call
 	writer *bufio.Writer
-	in     *ServerIn
+	in     *ServiceIn
 }
 
 func (c *serverCall) WantsMore() bool {
@@ -31,7 +31,7 @@ func (c *serverCall) GetParameters(in interface{}) error {
 	return json.Unmarshal(*c.in.Parameters, in)
 }
 
-func (c *serverCall) Reply(out *ServerOut) error {
+func (c *serverCall) Reply(out *ServiceOut) error {
 	b, e := json.Marshal(out)
 	if e != nil {
 		return e
@@ -46,7 +46,7 @@ func (c *serverCall) Reply(out *ServerOut) error {
 }
 
 func (c *serverCall) ReplyError(name string, parameters interface{}) error {
-	return c.Reply(&ServerOut{
+	return c.Reply(&ServiceOut{
 		Error:      name,
 		Parameters: parameters,
 	})
