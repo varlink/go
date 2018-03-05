@@ -45,7 +45,7 @@ func writeTypeString(b *bytes.Buffer, t *varlink.IDLType) {
 	}
 }
 
-func writeType(b *bytes.Buffer, name string, t *varlink.IDLType) {
+func writeType(b *bytes.Buffer, name string, omitempty bool, t *varlink.IDLType) {
 	if len(t.Fields) == 0 {
 		return
 	}
@@ -57,9 +57,11 @@ func writeType(b *bytes.Buffer, name string, t *varlink.IDLType) {
 		writeTypeString(b, field.Type)
 		b.WriteString(" `json:\"" + field.Name)
 
-		switch field.Type.Kind {
-		case varlink.IDLTypeStruct, varlink.IDLTypeString, varlink.IDLTypeEnum, varlink.IDLTypeArray, varlink.IDLTypeAlias:
-			b.WriteString(",omitempty")
+		if omitempty {
+			switch field.Type.Kind {
+			case varlink.IDLTypeStruct, varlink.IDLTypeString, varlink.IDLTypeEnum, varlink.IDLTypeArray, varlink.IDLTypeAlias:
+				b.WriteString(",omitempty")
+			}
 		}
 
 		b.WriteString("\"`\n")
@@ -97,17 +99,17 @@ func main() {
 	for _, member := range idl.Members {
 		switch member.(type) {
 		case *varlink.IDLAlias:
-			alias := member.(*varlink.IDLAlias)
-			writeType(&b, alias.Name, alias.Type)
+			a := member.(*varlink.IDLAlias)
+			writeType(&b, a.Name, true, a.Type)
 
 		case *varlink.IDLMethod:
-			method := member.(*varlink.IDLMethod)
-			writeType(&b, method.Name+"_In", method.In)
-			writeType(&b, method.Name+"_Out", method.Out)
+			m := member.(*varlink.IDLMethod)
+			writeType(&b, m.Name+"_In", false, m.In)
+			writeType(&b, m.Name+"_Out", true, m.Out)
 
 		case *varlink.IDLError:
-			err := member.(*varlink.IDLError)
-			writeType(&b, err.Name+"_Error", err.Type)
+			e := member.(*varlink.IDLError)
+			writeType(&b, e.Name+"_Error", true, e.Type)
 		}
 	}
 

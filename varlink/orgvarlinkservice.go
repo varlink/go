@@ -11,7 +11,7 @@ type getInfo_Out struct {
 }
 
 type getInterfaceDescription_In struct {
-	Interface string `json:"interface,omitempty"`
+	Interface string `json:"interface"`
 }
 
 type getInterfaceDescription_Out struct {

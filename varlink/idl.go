@@ -426,7 +426,7 @@ func (p *parser) readIDL() (*IDL, error) {
 				return nil, err
 			}
 
-			idl.Members = append(idl.Members, err)
+			idl.Members = append(idl.Members, e)
 			idl.Errors[e.Name] = e
 
 		default:
