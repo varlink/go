@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Valid TypeKind values used in the varlink interface description.
+// Valid TypeKind values used in the varlink Type.
 const (
 	Bool = iota
 	Int
@@ -21,7 +21,8 @@ const (
 // TypeKind specifies the type used in the varlink interface description.
 type TypeKind uint
 
-// Type represents a varlink type used in the varlink interface description.
+// Type represents a varlink type used in the varlink interface description. Varlink types types are
+// method input and output parameters, error output parameters, or custom defined types.
 type Type struct {
 	Kind        TypeKind
 	ElementType *Type

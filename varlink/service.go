@@ -19,7 +19,7 @@ type ServiceIn struct {
 	More       bool             `json:"more,omitempty"`
 }
 
-// ServiceIn represents the outgoing message sent by the service to a CLient.
+// ServiceOut represents the outgoing message sent by the service to a CLient.
 type ServiceOut struct {
 	Parameters interface{} `json:"parameters,omitempty"`
 	Continues  bool        `json:"continues,omitempty"`
@@ -160,10 +160,12 @@ func activationListener() net.Listener {
 	return listener
 }
 
+// Stop stops a running Service.
 func (s *Service) Stop() {
 	s.quit = true
 }
 
+// Run starts a Service.
 func (s *Service) Run(address string) error {
 	words := strings.SplitN(address, ":", 2)
 	protocol := words[0]
