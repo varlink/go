@@ -2,7 +2,7 @@
 
 package varlink
 
-type GetInfo_Out struct {
+type getInfo_Out struct {
 	Vendor     string   `json:"vendor,omitempty"`
 	Product    string   `json:"product,omitempty"`
 	Version    string   `json:"version,omitempty"`
@@ -10,11 +10,11 @@ type GetInfo_Out struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
-type GetInterfaceDescription_In struct {
+type getInterfaceDescription_In struct {
 	Interface string `json:"interface,omitempty"`
 }
 
-type GetInterfaceDescription_Out struct {
+type getInterfaceDescription_Out struct {
 	Description string `json:"description,omitempty"`
 }
 

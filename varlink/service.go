@@ -53,7 +53,7 @@ type Service struct {
 // GetInfo returns information about the running service.
 func (s *Service) GetInfo(c Call) error {
 	return c.Reply(&ServiceOut{
-		Parameters: GetInfo_Out{
+		Parameters: getInfo_Out{
 			Vendor:     s.vendor,
 			Product:    s.product,
 			Version:    s.version,
@@ -65,7 +65,7 @@ func (s *Service) GetInfo(c Call) error {
 
 // GetInterfaceDescription returns the varlink interface description of the given interface.
 func (s *Service) GetInterfaceDescription(c Call) error {
-	var in GetInterfaceDescription_In
+	var in getInterfaceDescription_In
 	err := c.GetParameters(&in)
 	if err != nil {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
@@ -78,7 +78,7 @@ func (s *Service) GetInterfaceDescription(c Call) error {
 	}
 
 	return c.Reply(&ServiceOut{
-		Parameters: GetInterfaceDescription_Out{ifacen.GetDescription()},
+		Parameters: getInterfaceDescription_Out{ifacen.GetDescription()},
 	})
 }
 
