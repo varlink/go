@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-// ClientIn represents the outgoing message sent by a Client to a Service.
+// ClientOut represents the outgoing message sent by a Client to a Service.
 type ClientOut struct {
 	Parameters *json.RawMessage `json:"parameters,omitempty"`
 	Continues  bool             `json:"continues,omitempty"`

@@ -21,6 +21,7 @@ const (
 // TypeKind specifies the type used in the varlink interface description.
 type TypeKind uint
 
+// Type represents a varlink type used in the varlink interface description.
 type Type struct {
 	Kind        TypeKind
 	ElementType *Type
@@ -28,7 +29,7 @@ type Type struct {
 	Fields      []TypeField
 }
 
-// Typefield is a named member of a varlink Struct.
+// TypeField is a named member of a varlink Struct used in the varlink interface description.
 type TypeField struct {
 	Name string
 	Type *Type
@@ -45,7 +46,7 @@ type IDL struct {
 	Errors      map[string]*IDLError
 }
 
-// IdlType represents a type defined in the interface description.
+// IDLType represents a custom defined type in the interface description.
 type IDLType struct {
 	Name string
 	Doc  string
