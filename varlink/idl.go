@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Valid IDLTypeKind values used in the IDLType.
+// Valid IDLTypeKind values.
 const (
 	IDLTypeBool = iota
 	IDLTypeInt
@@ -18,7 +18,7 @@ const (
 	IDLTypeAlias
 )
 
-// IDLTypeKind specifies the type used in the varlink interface description.
+// IDLTypeKind specifies the type of an IDLType.
 type IDLTypeKind uint
 
 // IDLType represents a varlink type. IDLTypes are method input and output parameters,
@@ -48,7 +48,7 @@ type IDL struct {
 	Errors      map[string]*IDLError
 }
 
-// IDLAlias represents a custom defined, named IDLType in the interface description.
+// IDLAlias represents a named IDLType in the interface description.
 type IDLAlias struct {
 	Name string
 	Doc  string

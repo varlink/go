@@ -237,7 +237,7 @@ func (s *Service) Run(address string) error {
 // NewService creates a new Service which implements the list of given varlink interfaces.
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	r := Service{
-		InterfaceDefinition: NewInterfaceDefinition(),
+		InterfaceDefinition: newInterfaceDefinition(),
 		vendor:              vendor,
 		product:             product,
 		version:             version,
