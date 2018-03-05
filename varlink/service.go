@@ -42,12 +42,12 @@ func keyList(mymap *map[string]Interface) []string {
 // running service.
 type Service struct {
 	InterfaceDefinition
-	vendor   string
-	product  string
-	version  string
-	url      string
-	services map[string]Interface
-	quit     bool
+	vendor     string
+	product    string
+	version    string
+	url        string
+	interfaces map[string]Interface
+	quit       bool
 }
 
 // GetInfo returns information about the running service.
@@ -58,7 +58,7 @@ func (s *Service) GetInfo(c Call) error {
 			Product:    s.product,
 			Version:    s.version,
 			Url:        s.url,
-			Interfaces: keyList(&s.services),
+			Interfaces: keyList(&s.interfaces),
 		},
 	})
 }
@@ -71,7 +71,7 @@ func (s *Service) GetInterfaceDescription(c Call) error {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
 	}
 
-	ifacep, ok := s.services[in.Interface]
+	ifacep, ok := s.interfaces[in.Interface]
 	ifacen := ifacep.(Interface)
 	if !ok {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
@@ -84,7 +84,7 @@ func (s *Service) GetInterfaceDescription(c Call) error {
 
 func (s *Service) registerInterface(iface Interface) {
 	name := iface.GetName()
-	s.services[name] = iface
+	s.interfaces[name] = iface
 }
 
 func (s *Service) handleMessage(c Call, request []byte) error {
@@ -104,16 +104,16 @@ func (s *Service) handleMessage(c Call, request []byte) error {
 
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
-	_, ok := s.services[interfacename]
+	_, ok := s.interfaces[interfacename]
 
 	if !ok {
 		return c.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
 	}
-	if !s.services[interfacename].IsMethod(methodname) {
+	if !s.interfaces[interfacename].IsMethod(methodname) {
 		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
 	}
 
-	v := reflect.ValueOf(s.services[interfacename]).MethodByName(methodname)
+	v := reflect.ValueOf(s.interfaces[interfacename]).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
 		return c.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
 	}
@@ -242,7 +242,7 @@ func NewService(vendor string, product string, version string, url string, iface
 		product:             product,
 		version:             version,
 		url:                 url,
-		services:            make(map[string]Interface),
+		interfaces:          make(map[string]Interface),
 	}
 
 	// Register org.varlink.service
