@@ -84,7 +84,7 @@ func main() {
 	description := strings.TrimRight(string(file), "\n")
 	idl, err := varlink.NewIDL(description)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintf(os.Stderr, "Error parsing file '%s': %s\n", varlinkFile, err)
 		os.Exit(1)
 	}
 	pkgname := strings.Replace(idl.Name, ".", "", -1)
