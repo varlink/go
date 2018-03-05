@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// Call defines a method call retrieved by a Server or sent by a Client.
 type Call interface {
 	WantMore() bool
 	GetParameters(in interface{}) error

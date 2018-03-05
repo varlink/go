@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Valid TypeKind values used in the varlink interface description.
 const (
 	Bool = iota
 	Int
@@ -17,6 +18,7 @@ const (
 	Alias
 )
 
+// TypeKind specifies the type used in the varlink interface description.
 type TypeKind uint
 
 type Type struct {
@@ -26,11 +28,13 @@ type Type struct {
 	Fields      []TypeField
 }
 
+// Typefield is a named member of a varlink Struct.
 type TypeField struct {
 	Name string
 	Type *Type
 }
 
+// IDL represents a parsed varlink interface description.
 type IDL struct {
 	Name        string
 	Doc         string
@@ -41,12 +45,14 @@ type IDL struct {
 	Errors      map[string]*IDLError
 }
 
+// IdlType represents a type defined in the interface description.
 type IDLType struct {
 	Name string
 	Doc  string
 	Type *Type
 }
 
+// IDLMethod represents a method defined in the interface description.
 type IDLMethod struct {
 	Name string
 	Doc  string
@@ -54,6 +60,7 @@ type IDLMethod struct {
 	Out  *Type
 }
 
+// IDLError represents an error defined in the interface description.
 type IDLError struct {
 	Name string
 	Type *Type
@@ -427,6 +434,7 @@ func (p *parser) readIDL() (*IDL, error) {
 	return idl, nil
 }
 
+// NewIDL parses a varlink interface descrition.
 func NewIDL(description string) (*IDL, error) {
 	p := &parser{input: description}
 
