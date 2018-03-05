@@ -23,6 +23,9 @@ func keyList(mymap *map[string]Interface) []string {
 	return keys
 }
 
+// Service represents an active varlink service. In addition to the custom varlink Interfaces, every service
+// implements the org.varlink.service interface, which allows clients to retrieve information about the
+// running service.
 type Service struct {
 	InterfaceDefinition
 	vendor   string
@@ -33,6 +36,7 @@ type Service struct {
 	quit     bool
 }
 
+// GetInfo returns information about the running service.
 func (s *Service) GetInfo(c Call) error {
 	return c.Reply(&ServerOut{
 		Parameters: GetInfo_Out{
@@ -45,6 +49,7 @@ func (s *Service) GetInfo(c Call) error {
 	})
 }
 
+// GetInterfaceDescription returns the varlink interface description of the given interface.
 func (s *Service) GetInterfaceDescription(c Call) error {
 	var in GetInterfaceDescription_In
 	err := c.GetParameters(&in)
@@ -68,7 +73,7 @@ func (s *Service) registerInterface(iface Interface) {
 	s.services[name] = iface
 }
 
-func (s *Service) HandleMessage(c serverCall, request []byte) error {
+func (s *Service) handleMessage(c serverCall, request []byte) error {
 	var in ServerIn
 
 	err := json.Unmarshal(request, &in)
@@ -191,7 +196,7 @@ func (s *Service) Run(address string) error {
 				break
 			}
 
-			err = s.HandleMessage(c, request[:len(request)-1])
+			err = s.handleMessage(c, request[:len(request)-1])
 			if err != nil {
 				break
 			}
@@ -213,6 +218,7 @@ func (s *Service) Run(address string) error {
 	return nil
 }
 
+// NewService creates a new Service which implements the list of given varlink interfaces.
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	r := Service{
 		InterfaceDefinition: NewInterfaceDefinition(),
@@ -223,7 +229,7 @@ func NewService(vendor string, product string, version string, url string, iface
 		services:            make(map[string]Interface),
 	}
 
-	// Register ourselves
+	// Register org.varlink.service
 	r.registerInterface(&r)
 
 	for _, iface := range ifaces {
