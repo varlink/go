@@ -41,7 +41,6 @@ func keyList(mymap *map[string]Interface) []string {
 // implements the org.varlink.service interface, which allows clients to retrieve information about the
 // running service.
 type Service struct {
-	InterfaceDefinition
 	vendor     string
 	product    string
 	version    string
@@ -51,7 +50,7 @@ type Service struct {
 }
 
 // GetInfo returns information about the running service.
-func (s *Service) GetInfo(c Call) error {
+func (s *Service) getInfo(c Call) error {
 	return c.Reply(&ServiceOut{
 		Parameters: getInfo_Out{
 			Vendor:     s.vendor,
@@ -64,7 +63,7 @@ func (s *Service) GetInfo(c Call) error {
 }
 
 // GetInterfaceDescription returns the varlink interface description of the given interface.
-func (s *Service) GetInterfaceDescription(c Call) error {
+func (s *Service) getInterfaceDescription(c Call) error {
 	var in getInterfaceDescription_In
 	err := c.GetParameters(&in)
 	if err != nil {
@@ -80,11 +79,6 @@ func (s *Service) GetInterfaceDescription(c Call) error {
 	return c.Reply(&ServiceOut{
 		Parameters: getInterfaceDescription_Out{ifacen.GetDescription()},
 	})
-}
-
-func (s *Service) registerInterface(iface Interface) {
-	name := iface.GetName()
-	s.interfaces[name] = iface
 }
 
 func (s *Service) handleMessage(c Call, request []byte) error {
@@ -104,16 +98,32 @@ func (s *Service) handleMessage(c Call, request []byte) error {
 
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
-	_, ok := s.interfaces[interfacename]
 
+	// Handle org.varlink.service calls
+	if interfacename == "org.varlink.service" {
+		switch methodname {
+		case "GetInfo":
+			return s.getInfo(c)
+
+		case "GetInterfaceDescription":
+			return s.getInterfaceDescription(c)
+
+		default:
+			return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
+		}
+	}
+
+	// Find the interface and method in our service
+	iface, ok := s.interfaces[interfacename]
 	if !ok {
 		return c.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
 	}
-	if !s.interfaces[interfacename].IsMethod(methodname) {
+	if !iface.IsMethod(methodname) {
 		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
 	}
 
-	v := reflect.ValueOf(s.interfaces[interfacename]).MethodByName(methodname)
+	// Dynamically find and call an implementation of the method in our module
+	v := reflect.ValueOf(iface).MethodByName(methodname)
 	if v.Kind() != reflect.Func {
 		return c.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
 	}
@@ -130,24 +140,17 @@ func (s *Service) handleMessage(c Call, request []byte) error {
 	return ret[0].Interface().(error)
 }
 
-func isActivated() bool {
-	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
-	if err != nil || pid != os.Getpid() {
-		return false
-	}
-
-	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
-	if err != nil || nfds != 1 {
-		return false
-	}
-	return true
-}
-
 func activationListener() net.Listener {
 	defer os.Unsetenv("LISTEN_PID")
 	defer os.Unsetenv("LISTEN_FDS")
 
-	if !isActivated() {
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err != nil || pid != os.Getpid() {
+		return nil
+	}
+
+	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if err != nil || nfds != 1 {
 		return nil
 	}
 
@@ -234,10 +237,13 @@ func (s *Service) Run(address string) error {
 	return nil
 }
 
+func (s *Service) registerInterface(iface Interface) {
+	s.interfaces[iface.GetName()] = iface
+}
+
 // NewService creates a new Service which implements the list of given varlink interfaces.
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
-	r := Service{
-		InterfaceDefinition: newInterfaceDefinition(),
+	s := Service{
 		vendor:              vendor,
 		product:             product,
 		version:             version,
@@ -245,11 +251,13 @@ func NewService(vendor string, product string, version string, url string, iface
 		interfaces:          make(map[string]Interface),
 	}
 
-	// Register org.varlink.service
-	r.registerInterface(&r)
+	// Every service has the org.varlink.service interface
+	d := newInterfaceDefinition()
+	s.registerInterface(&d)
 
 	for _, iface := range ifaces {
-		r.registerInterface(iface)
+		s.registerInterface(iface)
 	}
-	return r
+
+	return s
 }
