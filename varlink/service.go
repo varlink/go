@@ -87,7 +87,7 @@ func (s *Service) registerInterface(iface Interface) {
 	s.services[name] = iface
 }
 
-func (s *Service) handleMessage(c serviceCall, request []byte) error {
+func (s *Service) handleMessage(c Call, request []byte) error {
 	// c should be a fresh copy, because c.in is filled in for every message
 	var in ServiceIn
 
@@ -119,7 +119,7 @@ func (s *Service) handleMessage(c serviceCall, request []byte) error {
 	}
 
 	args := []reflect.Value{
-		reflect.ValueOf(&c),
+		reflect.ValueOf(c),
 	}
 	ret := v.Call(args)
 
@@ -204,7 +204,7 @@ func (s *Service) Run(address string) error {
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
-		c := serviceCall{writer: bufio.NewWriter(conn)}
+		c := Call{writer: bufio.NewWriter(conn)}
 
 		for !s.quit {
 			request, err := reader.ReadBytes('\x00')
