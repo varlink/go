@@ -190,8 +190,7 @@ func (s *Service) Run(address string) error {
 		return fmt.Errorf("Unknown protocol")
 	}
 
-	var l net.Listener
-	l = activationListener()
+	l := activationListener()
 	if l == nil {
 		var err error
 		l, err = net.Listen(protocol, addr)

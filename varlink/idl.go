@@ -83,12 +83,12 @@ func (p *parser) next() int {
 		r = int(p.input[p.position])
 	}
 
-	p.position += 1
+	p.position++
 	return r
 }
 
 func (p *parser) backup() {
-	p.position -= 1
+	p.position--
 }
 
 func (p *parser) advance() bool {

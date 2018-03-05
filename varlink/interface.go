@@ -9,8 +9,9 @@ type Interface interface {
 	IsMethod(methodname string) bool
 }
 
-// InterfaceDefinition represents an active interface derived from
-// a varlink interface description.
+// InterfaceDefinition represents an active interface derived from a varlink interface description.
+// An InterfaceDefinition for a varlink interface might be created by running varlink-generator which
+// creates a .go file from a .varlink interface description file.
 type InterfaceDefinition struct {
 	Interface
 	Name        string
@@ -24,7 +25,7 @@ func (d *InterfaceDefinition) GetName() string {
 }
 
 // GetDescription returns the interface description. The interface description can be retrieved from
-// the running service by calling the org.varlink.service.GetInterfaceDescription() method
+// the running service by calling org.varlink.service.GetInterfaceDescription().
 func (d *InterfaceDefinition) GetDescription() string {
 	return d.Description
 }
