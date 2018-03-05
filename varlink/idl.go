@@ -301,6 +301,72 @@ func (p *parser) readType() *Type {
 	return t
 }
 
+func (p *parser) readIDLType(idl *IDL) (*IDLType, error) {
+	a := &IDLType{}
+
+	p.advance()
+	a.Doc = p.lastComment.String()
+	a.Name = p.readTypeName()
+	if a.Name == "" {
+		return nil, fmt.Errorf("missing type name")
+	}
+
+	p.advance()
+	a.Type = p.readType()
+	if a.Type == nil {
+		return nil, fmt.Errorf("missing type declaration")
+	}
+
+	return a, nil
+}
+
+func (p *parser) readIDLMethod(idl *IDL) (*IDLMethod, error) {
+	m := &IDLMethod{}
+
+	p.advance()
+	m.Doc = p.lastComment.String()
+	m.Name = p.readTypeName()
+	if m.Name == "" {
+		return nil, fmt.Errorf("missing method type")
+	}
+
+	p.advance()
+	m.In = p.readType()
+	if m.In == nil {
+		return nil, fmt.Errorf("missing method input")
+	}
+
+	p.advance()
+	one := p.next()
+	two := p.next()
+	if (one != '-') || two != '>' {
+		return nil, fmt.Errorf("missing method '->' operator")
+	}
+
+	p.advance()
+	m.Out = p.readType()
+	if m.Out == nil {
+		return nil, fmt.Errorf("missing method output")
+	}
+
+	return m, nil
+}
+
+func (p *parser) readIDLError(idl *IDL) (*IDLError, error) {
+	e := &IDLError{}
+
+	p.advance()
+	e.Name = p.readTypeName()
+	if e.Name == "" {
+		return nil, fmt.Errorf("missing error name")
+	}
+
+	p.advanceOnLine()
+	e.Type = p.readType()
+
+	return e, nil
+}
+
 func (p *parser) readIDL() (*IDL, error) {
 	if keyword := p.readKeyword(); keyword != "interface" {
 		return nil, fmt.Errorf("missing interface keyword")
@@ -327,70 +393,31 @@ func (p *parser) readIDL() (*IDL, error) {
 
 		switch keyword := p.readKeyword(); keyword {
 		case "type":
-			alias := &IDLType{}
-
-			p.advance()
-			alias.Doc = p.lastComment.String()
-			alias.Name = p.readTypeName()
-			if alias.Name == "" {
-				return nil, fmt.Errorf("missing alias name")
+			a, err := p.readIDLType(idl)
+			if err != nil {
+				return nil, err
 			}
 
-			p.advance()
-			alias.Type = p.readType()
-			if alias.Type == nil {
-				return nil, fmt.Errorf("missing alias type")
-			}
-
-			idl.Members = append(idl.Members, alias)
-			idl.Aliases[alias.Name] = alias
+			idl.Members = append(idl.Members, a)
+			idl.Aliases[a.Name] = a
 
 		case "method":
-			method := &IDLMethod{}
-
-			p.advance()
-			method.Doc = p.lastComment.String()
-			method.Name = p.readTypeName()
-			if method.Name == "" {
-				return nil, fmt.Errorf("missing method type")
+			m, err := p.readIDLMethod(idl)
+			if err != nil {
+				return nil, err
 			}
 
-			p.advance()
-			method.In = p.readType()
-			if method.In == nil {
-				return nil, fmt.Errorf("missing method input")
-			}
-
-			p.advance()
-			one := p.next()
-			two := p.next()
-			if (one != '-') || two != '>' {
-				return nil, fmt.Errorf("missing method '->' operator")
-			}
-
-			p.advance()
-			method.Out = p.readType()
-			if method.Out == nil {
-				return nil, fmt.Errorf("missing method output")
-			}
-
-			idl.Members = append(idl.Members, method)
-			idl.Methods[method.Name] = method
+			idl.Members = append(idl.Members, m)
+			idl.Methods[m.Name] = m
 
 		case "error":
-			err := &IDLError{}
-
-			p.advance()
-			err.Name = p.readTypeName()
-			if err.Name == "" {
-				return nil, fmt.Errorf("missing error name")
+			e, err := p.readIDLError(idl)
+			if err != nil {
+				return nil, err
 			}
 
-			p.advanceOnLine()
-			err.Type = p.readType()
-
 			idl.Members = append(idl.Members, err)
-			idl.Errors[err.Name] = err
+			idl.Errors[e.Name] = e
 
 		default:
 			return nil, fmt.Errorf("unknown keyword '%s'", keyword)
