@@ -2,7 +2,6 @@
 // See http://varlink.org for more information.
 package varlink
 
-// Interface defines a varlink interface.
 type intf interface {
 	GetName() string
 	GetDescription() string
