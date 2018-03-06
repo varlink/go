@@ -9,15 +9,11 @@ import (
 )
 
 func TestNewService(t *testing.T) {
-	ifaces := []Interface{
-	// list own interface here
-	}
 	service := NewService(
 		"Varlink Test",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
-		ifaces,
 	)
 	var b bytes.Buffer
 	c := Call{writer: bufio.NewWriter(&b)}

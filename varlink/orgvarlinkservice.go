@@ -38,8 +38,8 @@ type InvalidParameter_Error struct {
 	Parameter string `json:"parameter,omitempty"`
 }
 
-func orgvarlinkserviceNew() Implementation {
-	return Implementation{
+func orgvarlinkserviceNew() Interface {
+	return Interface{
 		Name: `org.varlink.service`,
 		Description: `# The Varlink Service Interface is provided by every varlink service. It
 # describes the service and the interfaces it implements.

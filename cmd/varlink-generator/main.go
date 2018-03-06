@@ -113,8 +113,8 @@ func main() {
 		}
 	}
 
-	b.WriteString("func New() varlink.Implementation {\n" +
-		"\treturn varlink.Implementation{\n" +
+	b.WriteString("func New() varlink.Interface {\n" +
+		"\treturn varlink.Interface{\n" +
 		"\t\tName:        `" + idl.Name + "`,\n" +
 		"\t\tDescription: `" + idl.Description + "`,\n" +
 		"\t\tMethods: map[string]struct{}{\n")

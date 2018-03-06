@@ -26,7 +26,7 @@ type ServiceOut struct {
 	Error      string      `json:"error,omitempty"`
 }
 
-func keyList(mymap *map[string]Interface) []string {
+func keyList(mymap *map[string]intf) []string {
 	keys := make([]string, len(*mymap))
 
 	i := 0
@@ -45,7 +45,7 @@ type Service struct {
 	product    string
 	version    string
 	url        string
-	interfaces map[string]Interface
+	interfaces map[string]intf
 	quit       bool
 }
 
@@ -71,7 +71,7 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	}
 
 	ifacep, ok := s.interfaces[in.Interface]
-	ifacen := ifacep.(Interface)
+	ifacen := ifacep.(intf)
 	if !ok {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
 	}
@@ -237,27 +237,23 @@ func (s *Service) Run(address string) error {
 	return nil
 }
 
-func (s *Service) registerInterface(iface Interface) {
+func (s *Service) RegisterInterface(iface intf) {
 	s.interfaces[iface.GetName()] = iface
 }
 
 // NewService creates a new Service which implements the list of given varlink interfaces.
-func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
+func NewService(vendor string, product string, version string, url string) Service {
 	s := Service{
 		vendor:     vendor,
 		product:    product,
 		version:    version,
 		url:        url,
-		interfaces: make(map[string]Interface),
+		interfaces: make(map[string]intf),
 	}
 
 	// Every service has the org.varlink.service interface
 	d := orgvarlinkserviceNew()
-	s.registerInterface(&d)
-
-	for _, iface := range ifaces {
-		s.registerInterface(iface)
-	}
+	s.RegisterInterface(&d)
 
 	return s
 }
