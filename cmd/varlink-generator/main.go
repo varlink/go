@@ -8,31 +8,31 @@ import (
 	"path"
 	"strings"
 
-	"github.com/varlink/go/varlink"
+	"github.com/varlink/go/varlink/idl"
 )
 
-func writeTypeString(b *bytes.Buffer, t *varlink.IDLType) {
+func writeTypeString(b *bytes.Buffer, t *idl.Type) {
 	switch t.Kind {
-	case varlink.IDLTypeBool:
+	case idl.TypeBool:
 		b.WriteString("bool")
 
-	case varlink.IDLTypeInt:
+	case idl.TypeInt:
 		b.WriteString("int64")
 
-	case varlink.IDLTypeFloat:
+	case idl.TypeFloat:
 		b.WriteString("float64")
 
-	case varlink.IDLTypeString, varlink.IDLTypeEnum:
+	case idl.TypeString, idl.TypeEnum:
 		b.WriteString("string")
 
-	case varlink.IDLTypeArray:
+	case idl.TypeArray:
 		b.WriteString("[]")
 		writeTypeString(b, t.ElementType)
 
-	case varlink.IDLTypeAlias:
+	case idl.TypeAlias:
 		b.WriteString(t.Alias + "_T")
 
-	case varlink.IDLTypeStruct:
+	case idl.TypeStruct:
 		b.WriteString("struct {")
 		for i, field := range t.Fields {
 			if i > 0 {
@@ -45,7 +45,7 @@ func writeTypeString(b *bytes.Buffer, t *varlink.IDLType) {
 	}
 }
 
-func writeType(b *bytes.Buffer, name string, omitempty bool, t *varlink.IDLType) {
+func writeType(b *bytes.Buffer, name string, omitempty bool, t *idl.Type) {
 	if len(t.Fields) == 0 {
 		return
 	}
@@ -59,7 +59,7 @@ func writeType(b *bytes.Buffer, name string, omitempty bool, t *varlink.IDLType)
 
 		if omitempty {
 			switch field.Type.Kind {
-			case varlink.IDLTypeStruct, varlink.IDLTypeString, varlink.IDLTypeEnum, varlink.IDLTypeArray, varlink.IDLTypeAlias:
+			case idl.TypeStruct, idl.TypeString, idl.TypeEnum, idl.TypeArray, idl.TypeAlias:
 				b.WriteString(",omitempty")
 			}
 		}
@@ -84,41 +84,41 @@ func main() {
 	}
 
 	description := strings.TrimRight(string(file), "\n")
-	idl, err := varlink.NewIDL(description)
+	midl, err := idl.New(description)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing file '%s': %s\n", varlinkFile, err)
 		os.Exit(1)
 	}
-	pkgname := strings.Replace(idl.Name, ".", "", -1)
+	pkgname := strings.Replace(midl.Name, ".", "", -1)
 
 	var b bytes.Buffer
 	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator\n\n")
 	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString(`import "github.com/varlink/go/varlink"` + "\n\n")
 
-	for _, member := range idl.Members {
+	for _, member := range midl.Members {
 		switch member.(type) {
-		case *varlink.IDLAlias:
-			a := member.(*varlink.IDLAlias)
+		case *idl.Alias:
+			a := member.(*idl.Alias)
 			writeType(&b, a.Name+"_T", true, a.Type)
 
-		case *varlink.IDLMethod:
-			m := member.(*varlink.IDLMethod)
+		case *idl.Method:
+			m := member.(*idl.Method)
 			writeType(&b, m.Name+"_In", false, m.In)
 			writeType(&b, m.Name+"_Out", true, m.Out)
 
-		case *varlink.IDLError:
-			e := member.(*varlink.IDLError)
+		case *idl.Error:
+			e := member.(*idl.Error)
 			writeType(&b, e.Name+"_Error", true, e.Type)
 		}
 	}
 
 	b.WriteString("func New() varlink.Interface {\n" +
 		"\treturn varlink.Interface{\n" +
-		"\t\tName:        `" + idl.Name + "`,\n" +
-		"\t\tDescription: `" + idl.Description + "`,\n" +
+		"\t\tName:        `" + midl.Name + "`,\n" +
+		"\t\tDescription: `" + midl.Description + "`,\n" +
 		"\t\tMethods: map[string]struct{}{\n")
-	for m := range idl.Methods {
+	for m := range midl.Methods {
 		b.WriteString("\t\t\t\"" + m + `": {},` + "\n")
 	}
 	b.WriteString("\t\t},\n\t}\n}\n")
