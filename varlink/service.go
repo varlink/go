@@ -77,7 +77,7 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	}
 
 	return c.Reply(&ServiceOut{
-		Parameters: getInterfaceDescription_Out{ifacen.GetDescription()},
+		Parameters: getInterfaceDescription_Out{ifacen.getDescription()},
 	})
 }
 
@@ -119,7 +119,7 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	if !ok {
 		return c.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
 	}
-	if !iface.IsMethod(methodname) {
+	if !iface.isMethod(methodname) {
 		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
 	}
 
@@ -239,7 +239,7 @@ func (s *Service) Run(address string) error {
 }
 
 func (s *Service) RegisterInterface(iface intf) {
-	s.interfaces[iface.GetName()] = iface
+	s.interfaces[iface.getName()] = iface
 }
 
 // NewService creates a new Service which implements the list of given varlink interfaces.
