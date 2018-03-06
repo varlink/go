@@ -16,13 +16,13 @@ func TestNewService(t *testing.T) {
 		"https://github.com/varlink/go/varlink",
 	)
 	var b bytes.Buffer
-	c := Call{writer: bufio.NewWriter(&b)}
-	err := service.handleMessage(c, []byte{0})
+	w := bufio.NewWriter(&b)
+	err := service.handleMessage(w, []byte{0})
 	if err == nil {
 		t.Fatal("HandleMessage returned non-error")
 	}
 	msg := []byte(`{"method":"org.varlink.service.GetInfo"}`)
-	err = service.handleMessage(c, msg)
+	err = service.handleMessage(w, msg)
 	if err != nil {
 		fmt.Println(err)
 		t.Fatal("HandleMessage returned error")

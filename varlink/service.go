@@ -81,8 +81,7 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	})
 }
 
-func (s *Service) handleMessage(c Call, request []byte) error {
-	// c should be a fresh copy, because c.in is filled in for every message
+func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	var in ServiceIn
 
 	err := json.Unmarshal(request, &in)
@@ -90,7 +89,9 @@ func (s *Service) handleMessage(c Call, request []byte) error {
 	if err != nil {
 		return err
 	}
-	c.in = &in
+
+	c := Call{writer: writer, in: &in}
+
 	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "method"})
@@ -207,7 +208,7 @@ func (s *Service) Run(address string) error {
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
-		c := Call{writer: bufio.NewWriter(conn)}
+		writer := bufio.NewWriter(conn)
 
 		for !s.quit {
 			request, err := reader.ReadBytes('\x00')
@@ -215,7 +216,7 @@ func (s *Service) Run(address string) error {
 				break
 			}
 
-			err = s.handleMessage(c, request[:len(request)-1])
+			err = s.handleMessage(writer, request[:len(request)-1])
 			if err != nil {
 				break
 			}
