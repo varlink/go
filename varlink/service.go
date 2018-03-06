@@ -110,6 +110,10 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
 	}
 
+	if method == nil {
+		return c.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
+	}
+
 	return method(c)
 }
 
@@ -248,8 +252,7 @@ func NewService(vendor string, product string, version string, url string) Servi
 	s.RegisterInterface(&d, MethodMap{
 		"GetInfo":                 s.getInfo,
 		"GetInterfaceDescription": s.getInterfaceDescription,
-	},
-	)
+	})
 
 	return s
 }

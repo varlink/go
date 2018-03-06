@@ -3,10 +3,15 @@ package varlink_test
 // test with no internal access
 
 import (
+	"fmt"
 	. "github.com/varlink/go/varlink"
 	"testing"
 	"time"
 )
+
+func testFunc(c Call) error {
+	return nil
+}
 
 func TestRegisterService(t *testing.T) {
 	newTestInterface := func() Interface {
@@ -35,6 +40,11 @@ method StopServing() -> ()
 
 # Something failed
 error ActionFailed (reason: string)`,
+			Methods: MethodMap{
+				"Ping":        nil,
+				"TestMore":    nil,
+				"StopServing": nil,
+			},
 		}
 	}
 
@@ -46,12 +56,13 @@ error ActionFailed (reason: string)`,
 	)
 	d := newTestInterface()
 	m := MethodMap{
-		"TestMore":    nil,
-		"StopServing": nil,
-		"Ping":        nil,
+		"TestMore":    testFunc,
+		"StopServing": testFunc,
+		"Ping":        testFunc,
 	}
 	if err := service.RegisterInterface(&d, m); err != nil {
-		t.Fatal("Could register service")
+		fmt.Println(err)
+		t.Fatal("Couldn't register service")
 	}
 
 	if err := service.RegisterInterface(&d, m); err == nil {

@@ -2,6 +2,10 @@
 // See http://varlink.org for more information.
 package varlink
 
+import (
+	"fmt"
+)
+
 type method func(c Call) error
 type MethodMap map[string]method
 
@@ -18,7 +22,7 @@ type intf interface {
 type Interface struct {
 	Name        string
 	Description string
-	methods     MethodMap
+	Methods     MethodMap
 }
 
 func (d *Interface) getName() string {
@@ -30,11 +34,16 @@ func (d *Interface) getDescription() string {
 }
 
 func (d *Interface) addMethods(methods MethodMap) error {
-	d.methods = methods
+	for key, _ := range methods {
+		if _, ok := d.Methods[key]; !ok {
+			return fmt.Errorf("method '%s' not part of varlink interface definition", key)
+		}
+		d.Methods[key] = methods[key]
+	}
 	return nil
 }
 
 func (d *Interface) getMethod(name string) (method, bool) {
-	val, ok := d.methods[name]
+	val, ok := d.Methods[name]
 	return val, ok
 }
