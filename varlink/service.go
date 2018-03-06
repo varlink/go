@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -100,45 +99,18 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
 
-	// Handle org.varlink.service calls
-	if interfacename == "org.varlink.service" {
-		switch methodname {
-		case "GetInfo":
-			return s.getInfo(c)
-
-		case "GetInterfaceDescription":
-			return s.getInterfaceDescription(c)
-
-		default:
-			return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
-		}
-	}
-
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
 	if !ok {
 		return c.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
 	}
-	if !iface.isMethod(methodname) {
+
+	method, ok := iface.getMethod(methodname)
+	if !ok {
 		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
 	}
 
-	// Dynamically find and call an implementation of the method in our module
-	v := reflect.ValueOf(iface).MethodByName(methodname)
-	if v.Kind() != reflect.Func {
-		return c.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
-	}
-
-	args := []reflect.Value{
-		reflect.ValueOf(c),
-	}
-	ret := v.Call(args)
-
-	if ret[0].Interface() == nil {
-		return nil
-	}
-
-	return ret[0].Interface().(error)
+	return method(c)
 }
 
 func activationListener() net.Listener {
@@ -243,11 +215,17 @@ func (s *Service) Run(address string) error {
 }
 
 // RegisterInterface registers a varlink.Interface containing struct to the Service
-func (s *Service) RegisterInterface(iface intf) error {
+func (s *Service) RegisterInterface(iface intf, methods MethodMap) error {
 	name := iface.getName()
+
+	if err := iface.addMethods(methods); err != nil {
+		return err
+	}
+
 	if _, ok := s.interfaces[name]; ok {
 		return fmt.Errorf("interface '%s' already registered", name)
 	}
+
 	if s.running {
 		return fmt.Errorf("service is already running")
 	}
@@ -267,7 +245,11 @@ func NewService(vendor string, product string, version string, url string) Servi
 
 	// Every service has the org.varlink.service interface
 	d := orgvarlinkserviceNew()
-	s.RegisterInterface(&d)
+	s.RegisterInterface(&d, MethodMap{
+		"GetInfo":                 s.getInfo,
+		"GetInterfaceDescription": s.getInterfaceDescription,
+	},
+	)
 
 	return s
 }

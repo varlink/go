@@ -2,10 +2,14 @@
 // See http://varlink.org for more information.
 package varlink
 
+type method func(c Call) error
+type MethodMap map[string]method
+
 type intf interface {
 	getName() string
 	getDescription() string
-	isMethod(methodname string) bool
+	getMethod(name string) (method, bool)
+	addMethods(methods MethodMap) error
 }
 
 // Interface represents an active interface derived from a varlink interface description.
@@ -14,7 +18,7 @@ type intf interface {
 type Interface struct {
 	Name        string
 	Description string
-	Methods     map[string]struct{}
+	methods     MethodMap
 }
 
 func (d *Interface) getName() string {
@@ -25,7 +29,12 @@ func (d *Interface) getDescription() string {
 	return d.Description
 }
 
-func (d *Interface) isMethod(methodname string) bool {
-	_, ok := d.Methods[methodname]
-	return ok
+func (d *Interface) addMethods(methods MethodMap) error {
+	d.methods = methods
+	return nil
+}
+
+func (d *Interface) getMethod(name string) (method, bool) {
+	val, ok := d.methods[name]
+	return val, ok
 }

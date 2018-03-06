@@ -116,12 +116,8 @@ func main() {
 	b.WriteString("func New() varlink.Interface {\n" +
 		"\treturn varlink.Interface{\n" +
 		"\t\tName:        `" + midl.Name + "`,\n" +
-		"\t\tDescription: `" + midl.Description + "`,\n" +
-		"\t\tMethods: map[string]struct{}{\n")
-	for m := range midl.Methods {
-		b.WriteString("\t\t\t\"" + m + `": {},` + "\n")
-	}
-	b.WriteString("\t\t},\n\t}\n}\n")
+		"\t\tDescription: `" + midl.Description + "`,\n")
+	b.WriteString("\n\t}\n}\n")
 
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
 	err = ioutil.WriteFile(filename, b.Bytes(), 0660)

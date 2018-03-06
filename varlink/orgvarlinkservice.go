@@ -70,9 +70,5 @@ error MethodNotImplemented (method: string)
 
 # One of the passed parameters is invalid.
 error InvalidParameter (parameter: string)`,
-		Methods: map[string]struct{}{
-			"GetInfo":                 {},
-			"GetInterfaceDescription": {},
-		},
 	}
 }

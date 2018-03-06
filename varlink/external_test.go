@@ -35,11 +35,6 @@ method StopServing() -> ()
 
 # Something failed
 error ActionFailed (reason: string)`,
-			Methods: map[string]struct{}{
-				"TestMore":    {},
-				"StopServing": {},
-				"Ping":        {},
-			},
 		}
 	}
 
@@ -50,12 +45,16 @@ error ActionFailed (reason: string)`,
 		"https://github.com/varlink/go/varlink",
 	)
 	d := newTestInterface()
-
-	if err := service.RegisterInterface(&d); err != nil {
+	m := MethodMap{
+		"TestMore":    nil,
+		"StopServing": nil,
+		"Ping":        nil,
+	}
+	if err := service.RegisterInterface(&d, m); err != nil {
 		t.Fatal("Could register service")
 	}
 
-	if err := service.RegisterInterface(&d); err == nil {
+	if err := service.RegisterInterface(&d, m); err == nil {
 		t.Fatal("Could register service twice")
 	}
 
@@ -65,7 +64,7 @@ error ActionFailed (reason: string)`,
 
 	n := newTestInterface()
 
-	if err := service.RegisterInterface(&n); err == nil {
+	if err := service.RegisterInterface(&n, m); err == nil {
 		t.Fatal("Could register service while running")
 	}
 	service.Stop()
