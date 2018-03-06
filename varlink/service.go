@@ -46,7 +46,7 @@ type Service struct {
 	version    string
 	url        string
 	interfaces map[string]intf
-	quit       bool
+	running    bool
 }
 
 // GetInfo returns information about the running service.
@@ -167,7 +167,7 @@ func activationListener() net.Listener {
 
 // Stop stops a running Service.
 func (s *Service) Stop() {
-	s.quit = true
+	s.running = false
 }
 
 // Run starts a Service.
@@ -203,14 +203,18 @@ func (s *Service) Run(address string) error {
 			return err
 		}
 	}
+
+	endrunning := func() { s.running = false }
 	defer l.Close()
-	s.quit = false
+	defer endrunning()
+
+	s.running = true
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
 		writer := bufio.NewWriter(conn)
 
-		for !s.quit {
+		for s.running {
 			request, err := reader.ReadBytes('\x00')
 			if err != nil {
 				break
@@ -222,14 +226,14 @@ func (s *Service) Run(address string) error {
 			}
 		}
 		conn.Close()
-		if s.quit {
+		if !s.running {
 			l.Close()
 		}
 	}
 
-	for !s.quit {
+	for s.running {
 		conn, err := l.Accept()
-		if err != nil && !s.quit {
+		if err != nil && s.running {
 			return err
 		}
 		go handleConnection(conn)
@@ -238,8 +242,17 @@ func (s *Service) Run(address string) error {
 	return nil
 }
 
-func (s *Service) RegisterInterface(iface intf) {
-	s.interfaces[iface.getName()] = iface
+// RegisterInterface registers a varlink.Interface containing struct to the Service
+func (s *Service) RegisterInterface(iface intf) error {
+	name := iface.getName()
+	if _, ok := s.interfaces[name]; ok {
+		return fmt.Errorf("Interface '%s' already registered", name)
+	}
+	if s.running {
+		return fmt.Errorf("Service is already running")
+	}
+	s.interfaces[name] = iface
+	return nil
 }
 
 // NewService creates a new Service which implements the list of given varlink interfaces.
