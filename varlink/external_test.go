@@ -55,12 +55,15 @@ error ActionFailed (reason: string)`,
 		"1",
 		"https://github.com/varlink/go/varlink",
 	)
+
 	d := newTestInterface()
+
 	m := varlink.MethodMap{
 		"TestMore":    testFunc,
 		"StopServing": testFunc,
 		"Ping":        testFunc,
 	}
+
 	if err := service.RegisterInterface(&d, m); err != nil {
 		fmt.Println(err)
 		t.Fatal("Couldn't register service")
