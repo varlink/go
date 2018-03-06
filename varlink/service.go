@@ -246,10 +246,10 @@ func (s *Service) Run(address string) error {
 func (s *Service) RegisterInterface(iface intf) error {
 	name := iface.getName()
 	if _, ok := s.interfaces[name]; ok {
-		return fmt.Errorf("Interface '%s' already registered", name)
+		return fmt.Errorf("interface '%s' already registered", name)
 	}
 	if s.running {
-		return fmt.Errorf("Service is already running")
+		return fmt.Errorf("service is already running")
 	}
 	s.interfaces[name] = iface
 	return nil
