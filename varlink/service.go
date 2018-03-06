@@ -252,7 +252,7 @@ func NewService(vendor string, product string, version string, url string, iface
 	}
 
 	// Every service has the org.varlink.service interface
-	d := newInterface()
+	d := orgvarlinkserviceNew()
 	s.registerInterface(&d)
 
 	for _, iface := range ifaces {
