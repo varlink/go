@@ -38,4 +38,11 @@ func TestNewService(t *testing.T) {
 		fmt.Printf("Got len: %d\n", len(returned))
 		t.Fatal("HandleMessage return value differs")
 	}
+
+	msgDesc := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters":{"interface":"org.varlink.service"}}`)
+	err = service.handleMessage(w, msgDesc)
+	if err != nil {
+		fmt.Println(err)
+		t.Fatal("HandleMessage returned error")
+	}
 }
