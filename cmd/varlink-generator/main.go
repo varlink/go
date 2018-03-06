@@ -30,7 +30,7 @@ func writeTypeString(b *bytes.Buffer, t *varlink.IDLType) {
 		writeTypeString(b, t.ElementType)
 
 	case varlink.IDLTypeAlias:
-		b.WriteString(t.Alias)
+		b.WriteString(t.Alias + "_T")
 
 	case varlink.IDLTypeStruct:
 		b.WriteString("struct {")
@@ -100,7 +100,7 @@ func main() {
 		switch member.(type) {
 		case *varlink.IDLAlias:
 			a := member.(*varlink.IDLAlias)
-			writeType(&b, a.Name, true, a.Type)
+			writeType(&b, a.Name+"_T", true, a.Type)
 
 		case *varlink.IDLMethod:
 			m := member.(*varlink.IDLMethod)
@@ -113,8 +113,8 @@ func main() {
 		}
 	}
 
-	b.WriteString("func NewInterfaceDefinition() varlink.InterfaceDefinition {\n" +
-		"\treturn varlink.InterfaceDefinition{\n" +
+	b.WriteString("func New() varlink.Implementation {\n" +
+		"\treturn varlink.Implementation{\n" +
 		"\t\tName:        `" + idl.Name + "`,\n" +
 		"\t\tDescription: `" + idl.Description + "`,\n" +
 		"\t\tMethods: map[string]struct{}{\n")

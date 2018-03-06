@@ -244,15 +244,15 @@ func (s *Service) registerInterface(iface Interface) {
 // NewService creates a new Service which implements the list of given varlink interfaces.
 func NewService(vendor string, product string, version string, url string, ifaces []Interface) Service {
 	s := Service{
-		vendor:              vendor,
-		product:             product,
-		version:             version,
-		url:                 url,
-		interfaces:          make(map[string]Interface),
+		vendor:     vendor,
+		product:    product,
+		version:    version,
+		url:        url,
+		interfaces: make(map[string]Interface),
 	}
 
 	// Every service has the org.varlink.service interface
-	d := newInterfaceDefinition()
+	d := newInterface()
 	s.registerInterface(&d)
 
 	for _, iface := range ifaces {
