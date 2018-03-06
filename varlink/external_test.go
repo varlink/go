@@ -4,18 +4,19 @@ package varlink_test
 
 import (
 	"fmt"
-	. "github.com/varlink/go/varlink"
+	"github.com/varlink/go/varlink"
+	"os"
 	"testing"
 	"time"
 )
 
-func testFunc(c Call) error {
+func testFunc(c varlink.Call) error {
 	return nil
 }
 
 func TestRegisterService(t *testing.T) {
-	newTestInterface := func() Interface {
-		return Interface{
+	newTestInterface := func() varlink.Interface {
+		return varlink.Interface{
 			Name: `org.example.more`,
 			Description: `# Example service
 interface org.example.more
@@ -40,7 +41,7 @@ method StopServing() -> ()
 
 # Something failed
 error ActionFailed (reason: string)`,
-			Methods: MethodMap{
+			Methods: varlink.MethodMap{
 				"Ping":        nil,
 				"TestMore":    nil,
 				"StopServing": nil,
@@ -48,14 +49,14 @@ error ActionFailed (reason: string)`,
 		}
 	}
 
-	service := NewService(
+	service := varlink.NewService(
 		"Varlink Test",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
 	)
 	d := newTestInterface()
-	m := MethodMap{
+	m := varlink.MethodMap{
 		"TestMore":    testFunc,
 		"StopServing": testFunc,
 		"Ping":        testFunc,
@@ -69,7 +70,7 @@ error ActionFailed (reason: string)`,
 		t.Fatal("Could register service twice")
 	}
 
-	go service.Run("unix:@testtesttest")
+	go service.Run(fmt.Sprintf("unix:@varlinkexternal_test%d", os.Getpid()))
 
 	time.Sleep(time.Second)
 
