@@ -99,16 +99,16 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
 	if !ok {
-		return c.ReplyInterfaceNotFound(interfacename)
+		return c.replyInterfaceNotFound(interfacename)
 	}
 
 	method, ok := iface.getMethod(methodname)
 	if !ok {
-		return c.ReplyMethodNotFound(methodname)
+		return c.replyMethodNotFound(methodname)
 	}
 
 	if method == nil {
-		return c.ReplyMethodNotImplemented(methodname)
+		return c.replyMethodNotImplemented(methodname)
 	}
 
 	return method(c)

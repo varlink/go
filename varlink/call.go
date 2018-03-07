@@ -87,24 +87,21 @@ func (c *Call) ReplyError(name string, parameters interface{}) error {
 	})
 }
 
-// ReplyInterfaceNotFound sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyInterfaceNotFound(i string) error {
+func (c *Call) replyInterfaceNotFound(i string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.InterfaceNotFound",
 		Parameters: interfaceNotFound_Error{Interface: i},
 	})
 }
 
-// ReplyMethodNotFound sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyMethodNotFound(m string) error {
+func (c *Call) replyMethodNotFound(m string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.MethodNotFound",
 		Parameters: methodNotFound_Error{Method: m},
 	})
 }
 
-// ReplyMethodNotImplemented sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyMethodNotImplemented(m string) error {
+func (c *Call) replyMethodNotImplemented(m string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.MethodNotImplemented",
 		Parameters: methodNotImplemented_Error{Method: m},
