@@ -6,7 +6,9 @@ import (
 	"fmt"
 )
 
-// Call is a method call retrieved by a Service.
+// Call is a method call retrieved by a Service. The connection from the
+// client can be terminated by returning an error from the call instead
+// of sending a reply or error reply.
 type Call struct {
 	writer *bufio.Writer
 	in     *ServiceCall
@@ -25,9 +27,9 @@ func (c *Call) GetParameters(p interface{}) error {
 	return json.Unmarshal(*c.in.Parameters, p)
 }
 
-// Reply sends a reply to a method call.
-func (c *Call) Reply(out *ServiceReply) error {
-	b, e := json.Marshal(out)
+// Reply sends a reply to this method call.
+func (c *Call) Reply(r *ServiceReply) error {
+	b, e := json.Marshal(r)
 	if e != nil {
 		return e
 	}
@@ -40,7 +42,7 @@ func (c *Call) Reply(out *ServiceReply) error {
 	return c.writer.Flush()
 }
 
-// ReplyError sends an error reply to a method call.
+// ReplyError sends an error reply to this method call.
 func (c *Call) ReplyError(name string, parameters interface{}) error {
 	return c.Reply(&ServiceReply{
 		Error:      name,

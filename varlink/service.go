@@ -33,6 +33,7 @@ func keyList(mymap *map[string]intf) []string {
 		keys[i] = k
 		i++
 	}
+
 	return keys
 }
 
@@ -138,6 +139,7 @@ func activationListener() net.Listener {
 	if err != nil {
 		return nil
 	}
+
 	return listener
 }
 
@@ -201,6 +203,7 @@ func (s *Service) Run(address string) error {
 				break
 			}
 		}
+
 		conn.Close()
 		if !s.running {
 			l.Close()
@@ -212,6 +215,7 @@ func (s *Service) Run(address string) error {
 		if err != nil && s.running {
 			return err
 		}
+
 		go handleConnection(conn)
 	}
 
@@ -234,6 +238,7 @@ func (s *Service) RegisterInterface(iface intf, methods MethodMap) error {
 		return fmt.Errorf("service is already running")
 	}
 	s.interfaces[name] = iface
+
 	return nil
 }
 
