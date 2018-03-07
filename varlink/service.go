@@ -65,13 +65,13 @@ func (s *Service) getInfo(c Call) error {
 func (s *Service) getInterfaceDescription(c Call) error {
 	var in getInterfaceDescription_In
 	err := c.GetParameters(&in)
-	if err != nil {
+	if err != nil || in.Interface == "" {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
 	}
 
 	ifacep, ok := s.interfaces[in.Interface]
 	if !ok {
-		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
+		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
 	}
 	ifacen := ifacep.(intf)
 
