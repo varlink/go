@@ -3,7 +3,7 @@ package idl
 import (
 	"bytes"
 	"fmt"
-	"strings"
+	"regexp"
 )
 
 // Valid TypeKind values.
@@ -153,32 +153,25 @@ func (p *parser) readKeyword() string {
 
 func (p *parser) readInterfaceName() string {
 	start := p.position
-
-	for {
-		char := p.next()
-		if (char < 'a' || char > 'z') && char != '-' && char != '.' {
-			p.backup()
-			break
-		}
-	}
-
-	name := p.input[start:p.position]
-	if len(name) < 3 || len(name) > 255 {
-		return ""
-	}
-
-	parts := strings.Split(name, ".")
-	if len(parts) < 2 {
-		return ""
-	}
-
-	for _, part := range parts {
-		if len(part) == 0 || strings.HasPrefix(part, "-") || strings.HasSuffix(part, "-") {
+	dnrx := regexp.MustCompile(`^[a-z]+(\.[a-z0-9]+([-][a-z0-9]+)*)+`)
+	name := dnrx.FindString(p.input[start:])
+	if name != "" {
+		if len(name) > 255 {
 			return ""
 		}
+		p.position += len(name)
+		return name
 	}
-
-	return name
+	xdnrx := regexp.MustCompile(`^xn--[a-z0-9]+(\.[a-z0-9]+([-][a-z0-9]+)*)+`)
+	name = xdnrx.FindString(p.input[start:])
+	if name != "" {
+		if len(name) > 255 {
+			return ""
+		}
+		p.position += len(name)
+		return name
+	}
+	return ""
 }
 
 func (p *parser) readFieldName() string {
@@ -418,6 +411,9 @@ func (p *parser) readIDL() (*IDL, error) {
 			}
 
 			idl.Members = append(idl.Members, m)
+			if _, ok := idl.Methods[m.Name]; ok {
+				return nil, fmt.Errorf("method `%s` already defined", m.Name)
+			}
 			idl.Methods[m.Name] = m
 
 		case "error":
@@ -449,6 +445,10 @@ func New(description string) (*IDL, error) {
 
 	if p.advance() {
 		return nil, fmt.Errorf("advance error %s", p.input[p.position:])
+	}
+
+	if len(idl.Methods) == 0 {
+		return nil, fmt.Errorf("no methods defined")
 	}
 
 	idl.Description = description

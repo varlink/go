@@ -2,18 +2,16 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func expect(t *testing.T, expected string, returned string) {
 	if strings.Compare(returned, expected) != 0 {
-		s := fmt.Sprintf("Expected(%d): `%s`\nGot(%d): `%s`\n",
+		t.Fatalf("Expected(%d): `%s`\nGot(%d): `%s`\n",
 			len(expected), expected,
 			len(returned), returned)
-		fmt.Fprintln(os.Stderr, s)
-		t.Fatal(s)
 	}
 }
 
@@ -74,10 +72,89 @@ error ParameterOutOfRange (field: string)
 	`)
 
 	if err != nil {
-		t.Fatal(fmt.Sprintf("Error parsing %v", err))
+		t.Fatalf("Error parsing %v", err)
 	}
 	expect(t, "orgexampleftl", pkgname)
 	if len(b) <= 0 {
 		t.Fatal("No generated go source")
 	}
+}
+
+func testParse(t *testing.T, pass bool, description string) {
+	_, _, line, _ := runtime.Caller(1)
+	t.Run(fmt.Sprintf("Line-%d", line), func(t *testing.T) {
+
+		pkgname, b, err := generateTemplate(description)
+		if pass {
+			if err != nil {
+				t.Fatalf("generateTemplate(`%s`): %v", description, err)
+			}
+			if len(pkgname) <= 0 {
+				t.Fatalf("generateTemplate(`%s`): returned no pkgname", description)
+			}
+			if len(b) <= 0 {
+				t.Fatalf("generateTemplate(`%s`): returned no go source", description)
+			}
+		}
+		if !pass && (err == nil) {
+			t.Fatalf("generateTemplate(`%s`): did not fail", description)
+		}
+	})
+}
+
+func TestOneMethod(t *testing.T) {
+	testParse(t, true, "interface foo.bar\nmethod Foo()->()")
+}
+
+func TestOneMethodNoType(t *testing.T) {
+	testParse(t, false, "interface foo.bar\nmethod Foo()->(b:)")
+}
+
+func TestDomainNames(t *testing.T) {
+	testParse(t, true, "interface org.varlink.service\nmethod F()->()")
+	testParse(t, true, "interface com.example.0example\nmethod F()->()")
+	testParse(t, true, "interface com.example.example-dash\nmethod F()->()")
+	testParse(t, true, "interface xn--lgbbat1ad8j.example.algeria\nmethod F()->()")
+	testParse(t, false, "interface com.-example.leadinghyphen\nmethod F()->()")
+	testParse(t, false, "interface com.example-.danglinghyphen-\nmethod F()->()")
+	testParse(t, false, "interface Com.example.uppercase-toplevel\nmethod F()->()")
+	testParse(t, false, "interface Co9.example.number-toplevel\nmethod F()->()")
+	testParse(t, false, "interface 1om.example.number-toplevel\nmethod F()->()")
+	testParse(t, false, "interface com.Example\nmethod F()->()")
+}
+
+func TestNoMethod(t *testing.T) {
+	testParse(t, false, `
+interface org.varlink.service
+  type Interface (name: string, types: Type[], methods: Method[])
+  type Property (key: string, value: string)
+`)
+}
+
+func TestTypeNoArgs(t *testing.T) {
+	testParse(t, true, "interface foo.bar\n type I ()\nmethod F()->()")
+}
+
+func TestTypeOneArg(t *testing.T) {
+	testParse(t, true, "interface foo.bar\n type I (b:bool)\nmethod F()->()")
+}
+
+func TestTypeOneArray(t *testing.T) {
+	testParse(t, true, "interface foo.bar\n type I (b:bool[])\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (b:bool[ ])\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (b:bool[1])\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (b:bool[ 1 ])\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (b:bool[ 1 1 ])\nmethod  F()->()")
+}
+
+func TestDuplicate(t *testing.T) {
+	testParse(t, false, `
+interface foo.example
+	type Device()
+	type Device()
+	type T()
+	type T()
+	method F() -> ()
+	method F() -> ()
+`)
 }
