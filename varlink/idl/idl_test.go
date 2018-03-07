@@ -91,7 +91,7 @@ func TestFieldnames(t *testing.T) {
 	testParse(t, false, "interface foo.bar\n type I (Äest:bool[])\nmethod  F()->()")
 }
 func TestNestedStructs(t *testing.T) {
-	testParse(t, true, "interface foo.bar\n type I (b: (foo: bool, bar: bool, baz: int) )\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I ( b: (foo: bool, bar: bool, baz: int)[] )\nmethod  F()->()")
 }
 
 func TestEnum(t *testing.T) {

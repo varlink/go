@@ -26,6 +26,8 @@ interface org.example.ftl
 # available to jump.
 type DriveCondition (
   state: (idle, spooling, busy),
+  booster: bool,
+  active_engines: (id: int, state: bool)[],
   tylium_level: int
 )
 
