@@ -8,15 +8,15 @@ import (
 	"strings"
 )
 
-// ClientCall represents the outgoing message sent by a Client to a Service.
-type ClientCall struct {
+type clientCall struct {
 	Method     string      `json:"method"`
 	Parameters interface{} `json:"parameters,omitempty"`
 	More       bool        `json:"more,omitempty"`
+	OneShot    bool        `json:"more,omitempty"`
 }
 
-// ClientReply represents the incoming message received by the Client from a Service.
-type ClientReply struct {
+// clientReply represents the incoming message received by the Client from a Service.
+type clientReply struct {
 	Parameters *json.RawMessage `json:"parameters"`
 	Continues  bool             `json:"continues"`
 	Error      string           `json:"error"`
@@ -29,7 +29,7 @@ type Connection struct {
 	writer *bufio.Writer
 }
 
-func (c *Connection) sendMessage(message *ClientCall) error {
+func (c *Connection) sendMessage(message *clientCall) error {
 	b, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (c *Connection) sendMessage(message *ClientCall) error {
 	return c.writer.Flush()
 }
 
-func (c *Connection) receiveMessage(message *ClientReply) error {
+func (c *Connection) receiveMessage(message *clientReply) error {
 	out, err := c.reader.ReadBytes('\x00')
 	if err != nil {
 		return err
@@ -54,18 +54,13 @@ func (c *Connection) receiveMessage(message *ClientReply) error {
 }
 
 // Call sends a method call and returns the result of the call.
-func (c *Connection) Call(method string, parameters, result interface{}) error {
-	call := ClientCall{
-		Method:     method,
-		Parameters: parameters,
-	}
-
-	err := c.sendMessage(&call)
+func (c *Connection) call(call *clientCall, parameters, result interface{}) error {
+	err := c.sendMessage(call)
 	if err != nil {
 		return err
 	}
 
-	var r ClientReply
+	var r clientReply
 	err = c.receiveMessage(&r)
 	if err != nil {
 		return err
@@ -81,6 +76,28 @@ func (c *Connection) Call(method string, parameters, result interface{}) error {
 	}
 
 	return nil
+}
+
+// CallMore sends a method call and returns the result of the call. FIXME: support multiple replies
+func (c *Connection) CallMore(method string, parameters, result interface{}) error {
+	call := clientCall{
+		Method:     method,
+		Parameters: parameters,
+		More: true,
+	}
+
+	return c.call(&call, parameters, result)
+}
+
+// CallOneShot sends a method call and asks the server to suppress any reply.
+func (c *Connection) CallOneShot(method string, parameters, result interface{}) error {
+	call := clientCall{
+		Method:     method,
+		Parameters: parameters,
+		OneShot: true,
+	}
+
+	return c.sendMessage(&call)
 }
 
 // Close terminates the connection.
