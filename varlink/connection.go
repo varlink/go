@@ -72,7 +72,7 @@ func (c *Connection) Call(method string, out, in interface{}) error {
 	}
 
 	if r.Error != "" {
-		return fmt.Errorf("%s")
+		return fmt.Errorf("%s", r.Error)
 	}
 
 	err = json.Unmarshal(*r.Parameters, in)
