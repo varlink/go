@@ -43,8 +43,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	if err := service.RegisterInterface(&d, m); err != nil {
-		fmt.Println(err)
-		t.Fatal("Couldn't register service")
+		t.Fatalf("Couldn't register service: %v", err)
 	}
 
 	if err := service.RegisterInterface(&d, m); err == nil {

@@ -5,16 +5,15 @@ package varlink
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 )
 
 func expect(t *testing.T, expected string, returned string) {
 	if strings.Compare(returned, expected) != 0 {
-		t.Fatal(fmt.Sprintf("Expected(%d): `%s`\nGot(%d): `%s`\n",
+		t.Fatalf("Expected(%d): `%s`\nGot(%d): `%s`\n",
 			len(expected), expected,
-			len(returned), returned))
+			len(returned), returned)
 	}
 }
 
@@ -81,8 +80,7 @@ func TestService(t *testing.T) {
 		w := bufio.NewWriter(&b)
 		msg := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters":{}}`)
 		if err := service.handleMessage(w, msg); err != nil {
-			fmt.Println(err)
-			t.Fatal("HandleMessage returned error")
+			t.Fatalf("HandleMessage returned error: %v", err)
 		}
 		expect(t, `{"parameters":{"parameter":"interface"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
 			b.String())
@@ -93,8 +91,7 @@ func TestService(t *testing.T) {
 		w := bufio.NewWriter(&b)
 		msg := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters":{"interface":"foo"}}`)
 		if err := service.handleMessage(w, msg); err != nil {
-			fmt.Println(err)
-			t.Fatal("HandleMessage returned error")
+			t.Fatalf("HandleMessage returned error: %v", err)
 		}
 		expect(t, `{"parameters":{"parameter":"interface"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
 			b.String())
@@ -105,8 +102,7 @@ func TestService(t *testing.T) {
 		w := bufio.NewWriter(&b)
 		msg := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters":{"interface":"org.varlink.service"}}`)
 		if err := service.handleMessage(w, msg); err != nil {
-			fmt.Println(err)
-			t.Fatal("HandleMessage returned error")
+			t.Fatalf("HandleMessage returned error: %v", err)
 		}
 		expect(t, `{"parameters":{"description":"# The Varlink Service Interface is provided by every varlink service. It\n# describes the service and the interfaces it implements.\ninterface org.varlink.service\n\n# Get a list of all the interfaces a service provides and information\n# about the implementation.\nmethod GetInfo() -\u003e (\n  vendor: string,\n  product: string,\n  version: string,\n  url: string,\n  interfaces: string[]\n)\n\n# Get the description of an interface that is implemented by this service.\nmethod GetInterfaceDescription(interface: string) -\u003e (description: string)\n\n# The requested interface was not found.\nerror InterfaceNotFound (interface: string)\n\n# The requested method was not found\nerror MethodNotFound (method: string)\n\n# The interface defines the requested method, but the service does not\n# implement it.\nerror MethodNotImplemented (method: string)\n\n# One of the passed parameters is invalid.\nerror InvalidParameter (parameter: string)"}}`+"\000",
 			b.String())
@@ -117,8 +113,7 @@ func TestService(t *testing.T) {
 		w := bufio.NewWriter(&b)
 		msg := []byte(`{"method":"org.varlink.service.GetInfo"}`)
 		if err := service.handleMessage(w, msg); err != nil {
-			fmt.Println(err)
-			t.Fatal("HandleMessage returned error")
+			t.Fatalf("HandleMessage returned error: %v", err)
 		}
 		expect(t, `{"parameters":{"vendor":"Varlink Test","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go/varlink","interfaces":["org.varlink.service"]}}`+"\000",
 			b.String())
@@ -157,8 +152,7 @@ func TestMoreService(t *testing.T) {
 	}
 
 	if err := service.RegisterInterface(&d, m); err != nil {
-		fmt.Println(err)
-		t.Fatal("Couldn't register service")
+		t.Fatalf("Couldn't register service: %v", err)
 	}
 
 	t.Run("MethodNotImplemented", func(t *testing.T) {
@@ -166,8 +160,7 @@ func TestMoreService(t *testing.T) {
 		w := bufio.NewWriter(&b)
 		msg := []byte(`{"method":"org.example.more.Ping"}`)
 		if err := service.handleMessage(w, msg); err != nil {
-			fmt.Println(err)
-			t.Fatal("HandleMessage returned error")
+			t.Fatalf("HandleMessage returned error: %v", err)
 		}
 		expect(t, `{"parameters":{"method":"Ping"},"error":"org.varlink.service.MethodNotImplemented"}`+"\000",
 			b.String())
