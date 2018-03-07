@@ -161,6 +161,7 @@ func TestFieldnames(t *testing.T) {
 
 func TestEnum(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I (b:(foo, bar, baz))\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (foo, bar, baz : bool)\nmethod  F()->()")
 }
 
 func TestIncomplete(t *testing.T) {

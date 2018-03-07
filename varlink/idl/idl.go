@@ -443,10 +443,6 @@ func New(description string) (*IDL, error) {
 		return nil, err
 	}
 
-	if p.advance() {
-		return nil, fmt.Errorf("advance error %s", p.input[p.position:])
-	}
-
 	if len(idl.Methods) == 0 {
 		return nil, fmt.Errorf("no methods defined")
 	}
