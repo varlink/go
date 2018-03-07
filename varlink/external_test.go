@@ -17,30 +17,8 @@ func testFunc(c varlink.Call) error {
 func TestRegisterService(t *testing.T) {
 	newTestInterface := func() varlink.Interface {
 		return varlink.Interface{
-			Name: `org.example.more`,
-			Description: `# Example service
-interface org.example.more
-
-# Enum, returning either start, progress or end
-# progress: [0-100]
-type State (
-     start: bool,
-     progress: int,
-     end: bool
-)
-
-# Returns the same string
-method Ping(ping : string) -> (pong: string)
-
-# Dummy progress method
-# n: number of progress steps
-method TestMore(n : int) -> (state: State)
-
-# Stop serving
-method StopServing() -> ()
-
-# Something failed
-error ActionFailed (reason: string)`,
+			Name:        `org.example.more`,
+			Description: `#`,
 			Methods: varlink.MethodMap{
 				"Ping":        nil,
 				"TestMore":    nil,
@@ -83,4 +61,35 @@ error ActionFailed (reason: string)`,
 		t.Fatal("Could register service while running")
 	}
 	service.Stop()
+}
+
+func TestRegisterWrongMethod(t *testing.T) {
+	newTestInterface := func() varlink.Interface {
+		return varlink.Interface{
+			Name:        `org.example.more`,
+			Description: `#`,
+			Methods: varlink.MethodMap{
+				"Ping":        nil,
+				"TestMore":    nil,
+				"StopServing": nil,
+			},
+		}
+	}
+
+	service := varlink.NewService(
+		"Varlink Test",
+		"Varlink Test",
+		"1",
+		"https://github.com/varlink/go/varlink",
+	)
+
+	d := newTestInterface()
+
+	m := varlink.MethodMap{
+		"Foo": testFunc,
+	}
+
+	if err := service.RegisterInterface(&d, m); err == nil {
+		t.Fatal("Could add method not part of interface")
+	}
 }
