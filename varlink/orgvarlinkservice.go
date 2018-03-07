@@ -18,6 +18,18 @@ type getInterfaceDescription_Out struct {
 	Description string `json:"description,omitempty"`
 }
 
+type Wrong struct {
+	InterfaceNotFound struct {
+		Interface string `json:"interface,omitempty"`
+	}
+	MethodNotFound struct {
+		Method string `json:"method,omitempty"`
+	}
+	MethodNotImplemented struct {
+		Method string `json:"method,omitempty"`
+	}
+}
+
 // InterfaceNotFound_Error defines the parameters for the org.varlink.service.InterfaceNotFound error.
 type InterfaceNotFound_Error struct {
 	Interface string `json:"interface,omitempty"`

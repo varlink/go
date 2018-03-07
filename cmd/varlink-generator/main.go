@@ -45,7 +45,7 @@ func writeTypeString(b *bytes.Buffer, t *idl.Type) {
 	}
 }
 
-func writeType(b *bytes.Buffer, name string, omitempty bool, t *idl.Type) {
+func writeType(b *bytes.Buffer, name string, t *idl.Type) {
 	if len(t.Fields) == 0 {
 		return
 	}
@@ -57,11 +57,9 @@ func writeType(b *bytes.Buffer, name string, omitempty bool, t *idl.Type) {
 		writeTypeString(b, field.Type)
 		b.WriteString(" `json:\"" + field.Name)
 
-		if omitempty {
-			switch field.Type.Kind {
-			case idl.TypeStruct, idl.TypeString, idl.TypeEnum, idl.TypeArray, idl.TypeAlias:
-				b.WriteString(",omitempty")
-			}
+		switch field.Type.Kind {
+		case idl.TypeStruct, idl.TypeString, idl.TypeEnum, idl.TypeArray, idl.TypeAlias:
+			b.WriteString(",omitempty")
 		}
 
 		b.WriteString("\"`\n")
@@ -88,16 +86,16 @@ func generateTemplate(description string) (string, []byte, error) {
 		switch member.(type) {
 		case *idl.Alias:
 			a := member.(*idl.Alias)
-			writeType(&b, a.Name+"_T", true, a.Type)
+			writeType(&b, a.Name+"_T", a.Type)
 
 		case *idl.Method:
 			m := member.(*idl.Method)
-			writeType(&b, m.Name+"_In", false, m.In)
-			writeType(&b, m.Name+"_Out", true, m.Out)
+			writeType(&b, m.Name+"_In", m.In)
+			writeType(&b, m.Name+"_Out", m.Out)
 
 		case *idl.Error:
 			e := member.(*idl.Error)
-			writeType(&b, e.Name+"_Error", true, e.Type)
+			writeType(&b, e.Name+"_Error", e.Type)
 		}
 	}
 
