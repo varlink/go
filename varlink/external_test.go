@@ -28,7 +28,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	service := varlink.NewService(
-		"Varlink Test",
+		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
@@ -76,7 +76,7 @@ func TestRegisterWrongMethod(t *testing.T) {
 	}
 
 	service := varlink.NewService(
-		"Varlink Test",
+		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",

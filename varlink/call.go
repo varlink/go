@@ -11,7 +11,7 @@ import (
 // of sending a reply or error reply.
 type Call struct {
 	writer *bufio.Writer
-	in     *ServiceCall
+	in     *serviceCall
 }
 
 // WantsMore indicates if the calling client accepts more than one reply.
@@ -32,10 +32,9 @@ func (c *Call) GetParameters(p interface{}) error {
 	return json.Unmarshal(*c.in.Parameters, p)
 }
 
-// Reply sends a reply to this method call.
-func (c *Call) Reply(r *ServiceReply) error {
+func (c *Call) sendMessage(r *serviceReply) error {
 	if c.in.OneShot {
-		return fmt.Errorf("oneshot call does not expect a reply")
+		return nil
 	}
 
 	b, e := json.Marshal(r)
@@ -51,6 +50,13 @@ func (c *Call) Reply(r *ServiceReply) error {
 	return c.writer.Flush()
 }
 
+// Reply sends a reply to this method call.
+func (c *Call) Reply(parameters interface{}) error {
+	return c.sendMessage(&serviceReply{
+		Parameters: parameters,
+	})
+}
+
 // ReplyContinues sends a reply to this method call. The caller asked with the "more"
 // flag, this reply carries the "continues" flag.
 func (c *Call) ReplyContinues(parameters interface{}) error {
@@ -58,7 +64,7 @@ func (c *Call) ReplyContinues(parameters interface{}) error {
 		return fmt.Errorf("call did not set more, it does not expect continues")
 	}
 
-	return c.Reply(&ServiceReply{
+	return c.sendMessage(&serviceReply{
 		Continues: true,
 		Parameters: parameters,
 	})
@@ -66,11 +72,7 @@ func (c *Call) ReplyContinues(parameters interface{}) error {
 
 // ReplyError sends an error reply to this method call.
 func (c *Call) ReplyError(name string, parameters interface{}) error {
-	if c.in.OneShot {
-		return fmt.Errorf("oneshot call does not expect a reply")
-	}
-
-	return c.Reply(&ServiceReply{
+	return c.sendMessage(&serviceReply{
 		Error:      name,
 		Parameters: parameters,
 	})

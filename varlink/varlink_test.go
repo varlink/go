@@ -19,7 +19,7 @@ func expect(t *testing.T, expected string, returned string) {
 
 func TestService(t *testing.T) {
 	service := NewService(
-		"Varlink Test",
+		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
@@ -115,7 +115,7 @@ func TestService(t *testing.T) {
 		if err := service.handleMessage(w, msg); err != nil {
 			t.Fatalf("HandleMessage returned error: %v", err)
 		}
-		expect(t, `{"parameters":{"vendor":"Varlink Test","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go/varlink","interfaces":["org.varlink.service"]}}`+"\000",
+		expect(t, `{"parameters":{"vendor":"Varlink","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go/varlink","interfaces":["org.varlink.service"]}}`+"\000",
 			b.String())
 	})
 }
@@ -138,7 +138,7 @@ func TestMoreService(t *testing.T) {
 	}
 
 	service := NewService(
-		"Varlink Test",
+		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",

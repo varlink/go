@@ -11,16 +11,14 @@ import (
 	"syscall"
 )
 
-// ServiceCall represents the incoming message received by the Service from a Client.
-type ServiceCall struct {
+type serviceCall struct {
 	Method     string           `json:"method"`
 	Parameters *json.RawMessage `json:"parameters,omitempty"`
 	More       bool             `json:"more,omitempty"`
 	OneShot    bool             `json:"oneshot,omitempty"`
 }
 
-// ServiceReply represents the outgoing message sent by the service to a CLient.
-type ServiceReply struct {
+type serviceReply struct {
 	Parameters interface{} `json:"parameters,omitempty"`
 	Continues  bool        `json:"continues,omitempty"`
 	Error      string      `json:"error,omitempty"`
@@ -50,20 +48,16 @@ type Service struct {
 	running    bool
 }
 
-// GetInfo returns information about the running service.
 func (s *Service) getInfo(c Call) error {
-	return c.Reply(&ServiceReply{
-		Parameters: getInfo_Out{
-			Vendor:     s.vendor,
-			Product:    s.product,
-			Version:    s.version,
-			Url:        s.url,
-			Interfaces: keyList(&s.interfaces),
-		},
+	return c.Reply(&getInfo_Out{
+		Vendor:     s.vendor,
+		Product:    s.product,
+		Version:    s.version,
+		Url:        s.url,
+		Interfaces: keyList(&s.interfaces),
 	})
 }
 
-// GetInterfaceDescription returns the varlink interface description of the given interface.
 func (s *Service) getInterfaceDescription(c Call) error {
 	var in getInterfaceDescription_In
 	err := c.GetParameters(&in)
@@ -77,13 +71,11 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	}
 	ifacen := ifacep.(intf)
 
-	return c.Reply(&ServiceReply{
-		Parameters: getInterfaceDescription_Out{ifacen.getDescription()},
-	})
+	return c.Reply(&getInterfaceDescription_Out{ifacen.getDescription()})
 }
 
 func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
-	var in ServiceCall
+	var in serviceCall
 
 	err := json.Unmarshal(request, &in)
 
