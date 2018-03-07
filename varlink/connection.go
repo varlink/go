@@ -8,28 +8,28 @@ import (
 	"strings"
 )
 
-// ClientOut represents the outgoing message sent by a Client to a Service.
-type ClientOut struct {
+// ClientCall represents the outgoing message sent by a Client to a Service.
+type ClientCall struct {
 	Method     string      `json:"method"`
 	Parameters interface{} `json:"parameters,omitempty"`
 	More       bool        `json:"more,omitempty"`
 }
 
-// ClientIn represents the incoming message received by the Client from a Service.
-type ClientIn struct {
+// ClientReply represents the incoming message received by the Client from a Service.
+type ClientReply struct {
 	Parameters *json.RawMessage `json:"parameters"`
 	Continues  bool             `json:"continues"`
 	Error      string           `json:"error"`
 }
 
-// Connection is an active connection from a Client to a Service.
+// Connection is a connection from a client to a service.
 type Connection struct {
 	conn   net.Conn
 	reader *bufio.Reader
 	writer *bufio.Writer
 }
 
-func (c *Connection) sendMessage(message *ClientOut) error {
+func (c *Connection) sendMessage(message *ClientCall) error {
 	b, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (c *Connection) sendMessage(message *ClientOut) error {
 	return c.writer.Flush()
 }
 
-func (c *Connection) receiveMessage(message *ClientIn) error {
+func (c *Connection) receiveMessage(message *ClientReply) error {
 	out, err := c.reader.ReadBytes('\x00')
 	if err != nil {
 		return err
@@ -54,10 +54,10 @@ func (c *Connection) receiveMessage(message *ClientIn) error {
 }
 
 // Call sends a method call and returns the result of the call.
-func (c *Connection) Call(method string, out, in interface{}) error {
-	call := ClientOut{
+func (c *Connection) Call(method string, parameters, result interface{}) error {
+	call := ClientCall{
 		Method:     method,
-		Parameters: out,
+		Parameters: parameters,
 	}
 
 	err := c.sendMessage(&call)
@@ -65,7 +65,7 @@ func (c *Connection) Call(method string, out, in interface{}) error {
 		return err
 	}
 
-	var r ClientIn
+	var r ClientReply
 	err = c.receiveMessage(&r)
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (c *Connection) Call(method string, out, in interface{}) error {
 		return fmt.Errorf("%s", r.Error)
 	}
 
-	err = json.Unmarshal(*r.Parameters, in)
+	err = json.Unmarshal(*r.Parameters, result)
 	if err != nil {
 		return err
 	}

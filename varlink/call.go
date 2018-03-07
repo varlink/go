@@ -6,27 +6,27 @@ import (
 	"fmt"
 )
 
-// Call is a method call retrieved by a Service or sent by a Client.
+// Call is a method call retrieved by a Service.
 type Call struct {
 	writer *bufio.Writer
-	in     *ServiceIn
+	in     *ServiceCall
 }
 
-// WantsMore indicates if the clients accepts more than one reply.
+// WantsMore indicates if the calling client accepts more than one reply.
 func (c *Call) WantsMore() bool {
 	return c.in.More
 }
 
 // GetParameters retrieves the method call parameters.
-func (c *Call) GetParameters(in interface{}) error {
+func (c *Call) GetParameters(p interface{}) error {
 	if c.in.Parameters == nil {
 		return fmt.Errorf("Empty Parameters")
 	}
-	return json.Unmarshal(*c.in.Parameters, in)
+	return json.Unmarshal(*c.in.Parameters, p)
 }
 
 // Reply sends a reply to a method call.
-func (c *Call) Reply(out *ServiceOut) error {
+func (c *Call) Reply(out *ServiceReply) error {
 	b, e := json.Marshal(out)
 	if e != nil {
 		return e
@@ -42,7 +42,7 @@ func (c *Call) Reply(out *ServiceOut) error {
 
 // ReplyError sends an error reply to a method call.
 func (c *Call) ReplyError(name string, parameters interface{}) error {
-	return c.Reply(&ServiceOut{
+	return c.Reply(&ServiceReply{
 		Error:      name,
 		Parameters: parameters,
 	})

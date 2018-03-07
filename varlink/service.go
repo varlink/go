@@ -11,15 +11,15 @@ import (
 	"syscall"
 )
 
-// ServiceIn represents the incoming message received by the Service from a Client.
-type ServiceIn struct {
+// ServiceCall represents the incoming message received by the Service from a Client.
+type ServiceCall struct {
 	Method     string           `json:"method"`
 	Parameters *json.RawMessage `json:"parameters,omitempty"`
 	More       bool             `json:"more,omitempty"`
 }
 
-// ServiceOut represents the outgoing message sent by the service to a CLient.
-type ServiceOut struct {
+// ServiceReply represents the outgoing message sent by the service to a CLient.
+type ServiceReply struct {
 	Parameters interface{} `json:"parameters,omitempty"`
 	Continues  bool        `json:"continues,omitempty"`
 	Error      string      `json:"error,omitempty"`
@@ -50,7 +50,7 @@ type Service struct {
 
 // GetInfo returns information about the running service.
 func (s *Service) getInfo(c Call) error {
-	return c.Reply(&ServiceOut{
+	return c.Reply(&ServiceReply{
 		Parameters: getInfo_Out{
 			Vendor:     s.vendor,
 			Product:    s.product,
@@ -75,13 +75,13 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	}
 	ifacen := ifacep.(intf)
 
-	return c.Reply(&ServiceOut{
+	return c.Reply(&ServiceReply{
 		Parameters: getInterfaceDescription_Out{ifacen.getDescription()},
 	})
 }
 
 func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
-	var in ServiceIn
+	var in ServiceCall
 
 	err := json.Unmarshal(request, &in)
 
