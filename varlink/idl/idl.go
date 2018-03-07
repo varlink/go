@@ -178,7 +178,7 @@ func (p *parser) readFieldName() string {
 	start := p.position
 
 	char := p.next()
-	if (char < 'a' || char > 'z') && char != '_' {
+	if char < 'a' || char > 'z' {
 		p.backup()
 		return ""
 	}
