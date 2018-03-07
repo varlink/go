@@ -76,6 +76,30 @@ func TestService(t *testing.T) {
 			b.String())
 	})
 
+	t.Run("GetInterfaceDescriptionNoInterface", func(t *testing.T) {
+		var b bytes.Buffer
+		w := bufio.NewWriter(&b)
+		msg := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters":{}}`)
+		if err := service.handleMessage(w, msg); err != nil {
+			fmt.Println(err)
+			t.Fatal("HandleMessage returned error")
+		}
+		expect(t, `{"parameters":{"parameter":"description"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
+			b.String())
+	})
+
+	t.Run("GetInterfaceDescriptionWrongInterface", func(t *testing.T) {
+		var b bytes.Buffer
+		w := bufio.NewWriter(&b)
+		msg := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters":{"interface":"foo"}}`)
+		if err := service.handleMessage(w, msg); err != nil {
+			fmt.Println(err)
+			t.Fatal("HandleMessage returned error")
+		}
+		expect(t, `{"parameters":{"parameter":"description"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
+			b.String())
+	})
+
 	t.Run("GetInterfaceDescription", func(t *testing.T) {
 		var b bytes.Buffer
 		w := bufio.NewWriter(&b)
@@ -84,6 +108,8 @@ func TestService(t *testing.T) {
 			fmt.Println(err)
 			t.Fatal("HandleMessage returned error")
 		}
+		expect(t, `{"parameters":{"description":"# The Varlink Service Interface is provided by every varlink service. It\n# describes the service and the interfaces it implements.\ninterface org.varlink.service\n\n# Get a list of all the interfaces a service provides and information\n# about the implementation.\nmethod GetInfo() -\u003e (\n  vendor: string,\n  product: string,\n  version: string,\n  url: string,\n  interfaces: string[]\n)\n\n# Get the description of an interface that is implemented by this service.\nmethod GetInterfaceDescription(interface: string) -\u003e (description: string)\n\n# The requested interface was not found.\nerror InterfaceNotFound (interface: string)\n\n# The requested method was not found\nerror MethodNotFound (method: string)\n\n# The interface defines the requested method, but the service does not\n# implement it.\nerror MethodNotImplemented (method: string)\n\n# One of the passed parameters is invalid.\nerror InvalidParameter (parameter: string)"}}`+"\000",
+			b.String())
 	})
 
 	t.Run("GetInfo", func(t *testing.T) {
