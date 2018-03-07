@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Call is a method call retrieved by a Service. The connection from the
@@ -65,15 +66,55 @@ func (c *Call) ReplyContinues(parameters interface{}) error {
 	}
 
 	return c.sendMessage(&serviceReply{
-		Continues: true,
+		Continues:  true,
 		Parameters: parameters,
 	})
 }
 
 // ReplyError sends an error reply to this method call.
 func (c *Call) ReplyError(name string, parameters interface{}) error {
+	r := strings.LastIndex(name, ".")
+	if r <= 0 {
+		return fmt.Errorf("invalid error name")
+	}
+	if name[:r] == "org.varlink.service" {
+		return fmt.Errorf("refused to send org.varlink.service errors")
+	}
+
 	return c.sendMessage(&serviceReply{
 		Error:      name,
 		Parameters: parameters,
+	})
+}
+
+// ReplyInterfaceNotFound sends a org.varlink.service errror reply to this method call
+func (c *Call) ReplyInterfaceNotFound(i string) error {
+	return c.sendMessage(&serviceReply{
+		Error:      "org.varlink.service.InterfaceNotFound",
+		Parameters: interfaceNotFound_Error{Interface: i},
+	})
+}
+
+// ReplyMethodNotFound sends a org.varlink.service errror reply to this method call
+func (c *Call) ReplyMethodNotFound(m string) error {
+	return c.sendMessage(&serviceReply{
+		Error:      "org.varlink.service.MethodNotFound",
+		Parameters: methodNotFound_Error{Method: m},
+	})
+}
+
+// ReplyMethodNotImplemented sends a org.varlink.service errror reply to this method call
+func (c *Call) ReplyMethodNotImplemented(m string) error {
+	return c.sendMessage(&serviceReply{
+		Error:      "org.varlink.service.MethodNotImplemented",
+		Parameters: methodNotImplemented_Error{Method: m},
+	})
+}
+
+// ReplyInvalidParameter sends a org.varlink.service errror reply to this method call
+func (c *Call) ReplyInvalidParameter(p string) error {
+	return c.sendMessage(&serviceReply{
+		Error:      "org.varlink.service.InvalidParameter",
+		Parameters: invalidParameter_Error{Parameter: p},
 	})
 }

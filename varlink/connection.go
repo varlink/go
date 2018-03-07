@@ -83,7 +83,7 @@ func (c *Connection) CallMore(method string, parameters, result interface{}) err
 	call := clientCall{
 		Method:     method,
 		Parameters: parameters,
-		More: true,
+		More:       true,
 	}
 
 	return c.call(&call, parameters, result)
@@ -94,7 +94,7 @@ func (c *Connection) CallOneShot(method string, parameters, result interface{}) 
 	call := clientCall{
 		Method:     method,
 		Parameters: parameters,
-		OneShot: true,
+		OneShot:    true,
 	}
 
 	return c.sendMessage(&call)

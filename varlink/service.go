@@ -62,12 +62,12 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	var in getInterfaceDescription_In
 	err := c.GetParameters(&in)
 	if err != nil || in.Interface == "" {
-		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
+		return c.ReplyInvalidParameter("interface")
 	}
 
 	ifacep, ok := s.interfaces[in.Interface]
 	if !ok {
-		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "interface"})
+		return c.ReplyInvalidParameter("interface")
 	}
 	ifacen := ifacep.(intf)
 
@@ -90,7 +90,7 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 
 	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {
-		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "method"})
+		return c.ReplyInvalidParameter("method")
 	}
 
 	interfacename := in.Method[:r]
@@ -99,16 +99,16 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
 	if !ok {
-		return c.ReplyError("org.varlink.service.InterfaceNotFound", InterfaceNotFound_Error{Interface: interfacename})
+		return c.ReplyInterfaceNotFound(interfacename)
 	}
 
 	method, ok := iface.getMethod(methodname)
 	if !ok {
-		return c.ReplyError("org.varlink.service.MethodNotFound", MethodNotFound_Error{Method: methodname})
+		return c.ReplyMethodNotFound(methodname)
 	}
 
 	if method == nil {
-		return c.ReplyError("org.varlink.service.MethodNotImplemented", MethodNotImplemented_Error{Method: methodname})
+		return c.ReplyMethodNotImplemented(methodname)
 	}
 
 	return method(c)
