@@ -16,6 +16,7 @@ type ServiceCall struct {
 	Method     string           `json:"method"`
 	Parameters *json.RawMessage `json:"parameters,omitempty"`
 	More       bool             `json:"more,omitempty"`
+	OneShot    bool             `json:"oneshot,omitempty"`
 }
 
 // ServiceReply represents the outgoing message sent by the service to a CLient.
@@ -90,7 +91,10 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 		return err
 	}
 
-	c := Call{writer: writer, in: &in}
+	c := Call{
+		writer: writer,
+		in:     &in,
+	}
 
 	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {

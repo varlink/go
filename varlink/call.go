@@ -19,16 +19,25 @@ func (c *Call) WantsMore() bool {
 	return c.in.More
 }
 
+// IsOneShot indicates if the calling client does not expect a reply.
+func (c *Call) IsOneShot() bool {
+	return c.in.OneShot
+}
+
 // GetParameters retrieves the method call parameters.
 func (c *Call) GetParameters(p interface{}) error {
 	if c.in.Parameters == nil {
-		return fmt.Errorf("Empty Parameters")
+		return fmt.Errorf("empty parameters")
 	}
 	return json.Unmarshal(*c.in.Parameters, p)
 }
 
 // Reply sends a reply to this method call.
 func (c *Call) Reply(r *ServiceReply) error {
+	if c.in.OneShot {
+		return fmt.Errorf("oneshot call does not expect a reply")
+	}
+
 	b, e := json.Marshal(r)
 	if e != nil {
 		return e
@@ -42,8 +51,25 @@ func (c *Call) Reply(r *ServiceReply) error {
 	return c.writer.Flush()
 }
 
+// ReplyContinues sends a reply to this method call. The caller asked with the "more"
+// flag, this reply carries the "continues" flag.
+func (c *Call) ReplyContinues(parameters interface{}) error {
+	if !c.in.More {
+		return fmt.Errorf("call did not set more, it does not expect continues")
+	}
+
+	return c.Reply(&ServiceReply{
+		Continues: true,
+		Parameters: parameters,
+	})
+}
+
 // ReplyError sends an error reply to this method call.
 func (c *Call) ReplyError(name string, parameters interface{}) error {
+	if c.in.OneShot {
+		return fmt.Errorf("oneshot call does not expect a reply")
+	}
+
 	return c.Reply(&ServiceReply{
 		Error:      name,
 		Parameters: parameters,
