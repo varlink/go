@@ -15,6 +15,28 @@ func expect(t *testing.T, expected string, returned string) {
 	}
 }
 
+func testParse(t *testing.T, pass bool, description string) {
+	_, _, line, _ := runtime.Caller(1)
+	t.Run(fmt.Sprintf("Line-%d", line), func(t *testing.T) {
+
+		pkgname, b, err := generateTemplate(description)
+		if pass {
+			if err != nil {
+				t.Fatalf("generateTemplate(`%s`): %v", description, err)
+			}
+			if len(pkgname) <= 0 {
+				t.Fatalf("generateTemplate(`%s`): returned no pkgname", description)
+			}
+			if len(b) <= 0 {
+				t.Fatalf("generateTemplate(`%s`): returned no go source", description)
+			}
+		}
+		if !pass && (err == nil) {
+			t.Fatalf("generateTemplate(`%s`): did not fail", description)
+		}
+	})
+}
+
 func TestIDLParser(t *testing.T) {
 	pkgname, b, err := generateTemplate(`
 # Interface to jump a spacecraft to another point in space. The 
@@ -78,28 +100,7 @@ error ParameterOutOfRange (field: string)
 	if len(b) <= 0 {
 		t.Fatal("No generated go source")
 	}
-}
-
-func testParse(t *testing.T, pass bool, description string) {
-	_, _, line, _ := runtime.Caller(1)
-	t.Run(fmt.Sprintf("Line-%d", line), func(t *testing.T) {
-
-		pkgname, b, err := generateTemplate(description)
-		if pass {
-			if err != nil {
-				t.Fatalf("generateTemplate(`%s`): %v", description, err)
-			}
-			if len(pkgname) <= 0 {
-				t.Fatalf("generateTemplate(`%s`): returned no pkgname", description)
-			}
-			if len(b) <= 0 {
-				t.Fatalf("generateTemplate(`%s`): returned no go source", description)
-			}
-		}
-		if !pass && (err == nil) {
-			t.Fatalf("generateTemplate(`%s`): did not fail", description)
-		}
-	})
+	// FIXME: compare b.String() against expected output
 }
 
 func TestOneMethod(t *testing.T) {
