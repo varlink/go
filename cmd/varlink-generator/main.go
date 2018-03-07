@@ -69,26 +69,14 @@ func writeType(b *bytes.Buffer, name string, omitempty bool, t *idl.Type) {
 	b.WriteString("}\n\n")
 }
 
-func main() {
-	if len(os.Args) != 2 {
-		fmt.Printf("Usage: %s <file>\n", os.Args[0])
-		os.Exit(1)
-	}
+func generateTemplate(description string) (string, []byte, error) {
+	description = strings.TrimRight(description, "\n")
 
-	varlinkFile := os.Args[1]
-
-	file, err := ioutil.ReadFile(varlinkFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading file '%s': %s\n", varlinkFile, err)
-		os.Exit(1)
-	}
-
-	description := strings.TrimRight(string(file), "\n")
 	midl, err := idl.New(description)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing file '%s': %s\n", varlinkFile, err)
-		os.Exit(1)
+		return "", nil, err
 	}
+
 	pkgname := strings.Replace(midl.Name, ".", "", -1)
 
 	var b bytes.Buffer
@@ -122,11 +110,34 @@ func main() {
 		b.WriteString("\t\t\t\"" + m + `": nil,` + "\n")
 	}
 	b.WriteString("\t\t},\n\t}\n}\n")
+	return pkgname, b.Bytes(), nil
+}
+
+func generateFile(varlinkFile string) {
+	file, err := ioutil.ReadFile(varlinkFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file '%s': %s\n", varlinkFile, err)
+		os.Exit(1)
+	}
+
+	pkgname, b, err := generateTemplate(string(file))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing file '%s': %s\n", varlinkFile, err)
+		os.Exit(1)
+	}
 
 	filename := path.Dir(varlinkFile) + "/" + pkgname + ".go"
-	err = ioutil.WriteFile(filename, b.Bytes(), 0660)
+	err = ioutil.WriteFile(filename, b, 0660)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing file '%s': %s\n", filename, err)
 		os.Exit(1)
 	}
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Printf("Usage: %s <file>\n", os.Args[0])
+		os.Exit(1)
+	}
+	generateFile(os.Args[1])
 }
