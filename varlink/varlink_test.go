@@ -84,7 +84,7 @@ func TestService(t *testing.T) {
 			fmt.Println(err)
 			t.Fatal("HandleMessage returned error")
 		}
-		expect(t, `{"parameters":{"parameter":"description"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
+		expect(t, `{"parameters":{"parameter":"interface"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
 			b.String())
 	})
 
@@ -96,7 +96,7 @@ func TestService(t *testing.T) {
 			fmt.Println(err)
 			t.Fatal("HandleMessage returned error")
 		}
-		expect(t, `{"parameters":{"parameter":"description"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
+		expect(t, `{"parameters":{"parameter":"interface"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
 			b.String())
 	})
 
@@ -123,5 +123,53 @@ func TestService(t *testing.T) {
 		expect(t, `{"parameters":{"vendor":"Varlink Test","product":"Varlink Test","version":"1","url":"https://github.com/varlink/go/varlink","interfaces":["org.varlink.service"]}}`+"\000",
 			b.String())
 	})
+}
 
+func TestMoreService(t *testing.T) {
+	testFunc := func(c Call) error {
+		return nil
+	}
+
+	newTestInterface := func() Interface {
+		return Interface{
+			Name:        `org.example.more`,
+			Description: `#`,
+			Methods: MethodMap{
+				"Ping":        nil,
+				"TestMore":    nil,
+				"StopServing": nil,
+			},
+		}
+	}
+
+	service := NewService(
+		"Varlink Test",
+		"Varlink Test",
+		"1",
+		"https://github.com/varlink/go/varlink",
+	)
+
+	d := newTestInterface()
+
+	m := MethodMap{
+		"TestMore":    testFunc,
+		"StopServing": testFunc,
+	}
+
+	if err := service.RegisterInterface(&d, m); err != nil {
+		fmt.Println(err)
+		t.Fatal("Couldn't register service")
+	}
+
+	t.Run("MethodNotImplemented", func(t *testing.T) {
+		var b bytes.Buffer
+		w := bufio.NewWriter(&b)
+		msg := []byte(`{"method":"org.example.more.Ping"}`)
+		if err := service.handleMessage(w, msg); err != nil {
+			fmt.Println(err)
+			t.Fatal("HandleMessage returned error")
+		}
+		expect(t, `{"parameters":{"method":"Ping"},"error":"org.varlink.service.MethodNotImplemented"}`+"\000",
+			b.String())
+	})
 }
