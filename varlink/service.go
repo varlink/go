@@ -70,10 +70,10 @@ func (s *Service) getInterfaceDescription(c Call) error {
 	}
 
 	ifacep, ok := s.interfaces[in.Interface]
-	ifacen := ifacep.(intf)
 	if !ok {
 		return c.ReplyError("org.varlink.service.InvalidParameter", InvalidParameter_Error{Parameter: "description"})
 	}
+	ifacen := ifacep.(intf)
 
 	return c.Reply(&ServiceOut{
 		Parameters: getInterfaceDescription_Out{ifacen.getDescription()},
