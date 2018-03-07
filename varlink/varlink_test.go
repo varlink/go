@@ -33,7 +33,7 @@ func TestService(t *testing.T) {
 		}
 	})
 
-	t.Run("Invalid json", func(t *testing.T) {
+	t.Run("InvalidJson", func(t *testing.T) {
 		var b bytes.Buffer
 		w := bufio.NewWriter(&b)
 		msg := []byte(`{"method":"foo.GetInterfaceDescription" fdgdfg}`)
