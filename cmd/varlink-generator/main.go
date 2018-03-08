@@ -11,7 +11,7 @@ import (
 	"github.com/varlink/go/varlink/idl"
 )
 
-func writeTypeString(b *bytes.Buffer, t *idl.Type) {
+func writeTypeString(b *bytes.Buffer, t *idl.Type, level int) {
 	switch t.Kind {
 	case idl.TypeBool:
 		b.WriteString("bool")
@@ -27,44 +27,53 @@ func writeTypeString(b *bytes.Buffer, t *idl.Type) {
 
 	case idl.TypeArray:
 		b.WriteString("[]")
-		writeTypeString(b, t.ElementType)
+		writeTypeString(b, t.ElementType, 0)
 
 	case idl.TypeAlias:
-		b.WriteString(t.Alias + "_T")
+		b.WriteString(t.Alias)
 
 	case idl.TypeStruct:
-		b.WriteString("struct {")
+		if level > 0 {
+			b.WriteString("struct {")
+		}
 		for i, field := range t.Fields {
 			if i > 0 {
 				b.WriteString("; ")
 			}
 			b.WriteString(field.Name + " ")
-			writeTypeString(b, field.Type)
+			writeTypeString(b, field.Type, level)
 		}
-		b.WriteString("}")
+		if level > 0 {
+			b.WriteString("}")
+		}
 	}
 }
 
-func writeType(b *bytes.Buffer, name string, t *idl.Type) {
-	if len(t.Fields) == 0 {
-		return
+func writeType(b *bytes.Buffer, decl string, t *idl.Type, omit bool, ident int) {
+	for i := 0; i < ident; i++ {
+		b.WriteString("\t")
 	}
-
-	b.WriteString("type " + name + " struct {\n")
+	b.WriteString(decl + " struct {\n")
 	for _, field := range t.Fields {
 		name := strings.Title(field.Name)
-		b.WriteString("\t" + name + " ")
-		writeTypeString(b, field.Type)
-		b.WriteString(" `json:\"" + field.Name)
-
-		switch field.Type.Kind {
-		case idl.TypeStruct, idl.TypeString, idl.TypeEnum, idl.TypeArray, idl.TypeAlias:
-			b.WriteString(",omitempty")
+		for i := 0; i < ident+1; i++ {
+			b.WriteString("\t")
 		}
-
+		b.WriteString(name + " ")
+		writeTypeString(b, field.Type, 0)
+		b.WriteString(" `json:\"" + field.Name)
+		if omit {
+			switch field.Type.Kind {
+			case idl.TypeStruct, idl.TypeString, idl.TypeEnum, idl.TypeArray, idl.TypeAlias:
+				b.WriteString(",omitempty")
+			}
+		}
 		b.WriteString("\"`\n")
 	}
-	b.WriteString("}\n\n")
+	for i := 0; i < ident; i++ {
+		b.WriteString("\t")
+	}
+	b.WriteString("}\n")
 }
 
 func generateTemplate(description string) (string, []byte, error) {
@@ -78,36 +87,126 @@ func generateTemplate(description string) (string, []byte, error) {
 	pkgname := strings.Replace(midl.Name, ".", "", -1)
 
 	var b bytes.Buffer
-	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator\n\n")
+	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator\n")
 	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString(`import "github.com/varlink/go/varlink"` + "\n\n")
 
-	for _, member := range midl.Members {
-		switch member.(type) {
-		case *idl.Alias:
-			a := member.(*idl.Alias)
-			writeType(&b, a.Name+"_T", a.Type)
+	// Type declarations
+	for _, a := range midl.Aliases {
+		writeType(&b, "type "+a.Name, a.Type, true, 0)
+		b.WriteString("\n")
+	}
 
-		case *idl.Method:
-			m := member.(*idl.Method)
-			writeType(&b, m.Name+"_In", m.In)
-			writeType(&b, m.Name+"_Out", m.Out)
+	// Local interface with all methods
+	b.WriteString("type " + pkgname + "Interface interface {\n")
+	for _, m := range midl.Methods {
+		b.WriteString("\t" + m.Name + "(c VarlinkCall")
+		if len(m.In.Fields) > 0 {
+			b.WriteString(", ")
+			writeTypeString(&b, m.In, 0)
+		}
+		b.WriteString(") error\n")
+	}
+	b.WriteString("}\n\n")
 
-		case *idl.Error:
-			e := member.(*idl.Error)
-			writeType(&b, e.Name+"_Error", e.Type)
+	// Local object with all methods
+	b.WriteString("type VarlinkCall struct{ varlink.Call }\n\n")
+
+	// Reply methods for all varlink errors
+	for _, e := range midl.Errors {
+		b.WriteString("func (c *VarlinkCall) Reply" + e.Name + "(")
+		if len(e.Type.Fields) > 0 {
+			writeTypeString(&b, e.Type, 0)
+		}
+		b.WriteString(") error {\n")
+		if len(e.Type.Fields) > 0 {
+			writeType(&b, "var out", e.Type, true, 1)
+			for _, field := range e.Type.Fields {
+				b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "\n")
+			}
+			b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", &out)\n")
+		} else {
+			b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", nil)\n")
+		}
+		b.WriteString("}\n\n")
+	}
+
+	// Reply methods for all varlink methods
+	for _, m := range midl.Methods {
+		b.WriteString("func (c *VarlinkCall) Reply" + m.Name + "(")
+		if len(m.Out.Fields) > 0 {
+			writeTypeString(&b, m.Out, 0)
+		}
+		b.WriteString(") error {\n")
+		if len(m.Out.Fields) > 0 {
+			writeType(&b, "var out", m.Out, true, 1)
+			for _, field := range m.Out.Fields {
+				b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "\n")
+			}
+			b.WriteString("\treturn c.Reply(&out)\n")
+		} else {
+			b.WriteString("\treturn c.Reply(nil)\n")
+		}
+		b.WriteString("}\n\n")
+	}
+
+	// Dummy methods for all varlink methods
+	for _, m := range midl.Methods {
+		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(c VarlinkCall")
+		if len(m.In.Fields) > 0 {
+			b.WriteString(", ")
+			writeTypeString(&b, m.In, 0)
+		}
+		b.WriteString(") error {\n" +
+			"\treturn c.ReplyMethodNotImplemented(\"" + m.Name + "\")\n" +
+			"}\n\n")
+	}
+
+	// Method call dispatcher
+	b.WriteString("func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {\n" +
+		"\tswitch methodname {\n")
+	for _, m := range midl.Methods {
+		b.WriteString("\tcase \"" + m.Name + "\":\n")
+		if len(m.In.Fields) > 0 {
+			writeType(&b, "var in", m.In, false, 2)
+			b.WriteString("\t\terr := call.GetParameters(&in)\n" +
+				"\t\tif err != nil {\n" +
+				"\t\t\treturn call.ReplyInvalidParameter(\"parameters\")\n" +
+				"\t\t}\n")
+			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call}")
+			if len(m.In.Fields) > 0 {
+				b.WriteString(", ")
+				for _, field := range m.In.Fields {
+					b.WriteString("in." + strings.Title(field.Name))
+				}
+			}
+			b.WriteString(")\n")
+		} else {
+			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call})\n")
 		}
 	}
+	b.WriteString("\n" +
+		"\tdefault:\n" +
+		"\t\treturn call.ReplyMethodNotFound(methodname)\n" +
+		"\t}\n" +
+		"}\n")
 
-	b.WriteString("func New() varlink.Interface {\n" +
-		"\treturn varlink.Interface{\n" +
-		"\t\tName:        `" + midl.Name + "`,\n" +
-		"\t\tDescription: `" + midl.Description + "`,\n" +
-		"\t\tMethods: varlink.MethodMap{\n")
-	for m := range midl.Methods {
-		b.WriteString("\t\t\t\"" + m + `": nil,` + "\n")
-	}
-	b.WriteString("\t\t},\n\t}\n}\n")
+	// Varlink interface name
+	b.WriteString("func (s *VarlinkInterface) VarlinkGetName() string {\n" +
+		"\treturn `" + midl.Name + "`\n" + "}\n\n")
+
+	// Varlink interface description
+	b.WriteString("func (s *VarlinkInterface) VarlinkGetDescription() string {\n" +
+		"\treturn `" + midl.Description + "`\n}\n\n")
+
+	b.WriteString("type VarlinkInterface struct {\n" +
+		"\t" + pkgname + "Interface\n" +
+		"}\n\n")
+
+	b.WriteString("func VarlinkNew(m " + pkgname + "Interface) *VarlinkInterface {\n" +
+		"\treturn &VarlinkInterface{m}\n" +
+		"}\n")
+
 	return pkgname, b.Bytes(), nil
 }
 

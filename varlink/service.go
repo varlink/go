@@ -11,6 +11,12 @@ import (
 	"syscall"
 )
 
+type dispatcher interface {
+	VarlinkDispatch(c Call, methodname string) error
+	VarlinkGetName() string
+	VarlinkGetDescription() string
+}
+
 type serviceCall struct {
 	Method     string           `json:"method"`
 	Parameters *json.RawMessage `json:"parameters,omitempty"`
@@ -24,54 +30,49 @@ type serviceReply struct {
 	Error      string      `json:"error,omitempty"`
 }
 
-func keyList(mymap *map[string]intf) []string {
-	keys := make([]string, len(*mymap))
-
-	i := 0
-	for k := range *mymap {
-		keys[i] = k
-		i++
-	}
-
-	return keys
-}
-
 // Service represents an active varlink service. In addition to the custom varlink Interfaces, every service
 // implements the org.varlink.service interface, which allows clients to retrieve information about the
 // running service.
 type Service struct {
-	vendor     string
-	product    string
-	version    string
-	url        string
-	interfaces map[string]intf
-	running    bool
+	orgvarlinkserviceBase
+	vendor       string
+	product      string
+	version      string
+	url          string
+	interfaces   map[string]dispatcher
+	names        []string
+	descriptions map[string]string
+	running      bool
 }
 
-func (s *Service) getInfo(c Call) error {
+func (s *Service) GetInfo(c Call) error {
 	return c.Reply(&getInfo_Out{
 		Vendor:     s.vendor,
 		Product:    s.product,
 		Version:    s.version,
 		Url:        s.url,
-		Interfaces: keyList(&s.interfaces),
+		Interfaces: s.names,
 	})
 }
 
-func (s *Service) getInterfaceDescription(c Call) error {
-	var in getInterfaceDescription_In
-	err := c.GetParameters(&in)
-	if err != nil || in.Interface == "" {
+func (s *Service) GetInterfaceDescription(c Call, name string) error {
+	if name == "" {
 		return c.ReplyInvalidParameter("interface")
 	}
 
-	ifacep, ok := s.interfaces[in.Interface]
+	description, ok := s.descriptions[name]
 	if !ok {
 		return c.ReplyInvalidParameter("interface")
 	}
-	ifacen := ifacep.(intf)
 
-	return c.Reply(&getInterfaceDescription_Out{ifacen.getDescription()})
+	return c.Reply(&getInterfaceDescription_Out{description})
+}
+
+func (s *Service) replyInterfaceNotFound(c Call, i string) error {
+	return c.sendMessage(&serviceReply{
+		Error:      "org.varlink.service.InterfaceNotFound",
+		Parameters: interfaceNotFound_Error{Interface: i},
+	})
 }
 
 func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
@@ -99,19 +100,10 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
 	if !ok {
-		return c.replyInterfaceNotFound(interfacename)
+		return s.replyInterfaceNotFound(c, interfacename)
 	}
 
-	method, ok := iface.getMethod(methodname)
-	if !ok {
-		return c.replyMethodNotFound(methodname)
-	}
-
-	if method == nil {
-		return c.replyMethodNotImplemented(methodname)
-	}
-
-	return method(c)
+	return iface.VarlinkDispatch(c, methodname)
 }
 
 func activationListener() net.Listener {
@@ -219,13 +211,8 @@ func (s *Service) Run(address string) error {
 }
 
 // RegisterInterface registers a varlink.Interface containing struct to the Service
-func (s *Service) RegisterInterface(iface intf, methods MethodMap) error {
-	name := iface.getName()
-
-	if err := iface.addMethods(methods); err != nil {
-		return err
-	}
-
+func (s *Service) RegisterInterface(iface dispatcher) error {
+	name := iface.VarlinkGetName()
 	if _, ok := s.interfaces[name]; ok {
 		return fmt.Errorf("interface '%s' already registered", name)
 	}
@@ -234,26 +221,23 @@ func (s *Service) RegisterInterface(iface intf, methods MethodMap) error {
 		return fmt.Errorf("service is already running")
 	}
 	s.interfaces[name] = iface
+	s.descriptions[name] = iface.VarlinkGetDescription()
+	s.names = append(s.names, name)
 
 	return nil
 }
 
 // NewService creates a new Service which implements the list of given varlink interfaces.
-func NewService(vendor string, product string, version string, url string) Service {
+func NewService(vendor string, product string, version string, url string) *Service {
 	s := Service{
-		vendor:     vendor,
-		product:    product,
-		version:    version,
-		url:        url,
-		interfaces: make(map[string]intf),
+		vendor:       vendor,
+		product:      product,
+		version:      version,
+		url:          url,
+		interfaces:   make(map[string]dispatcher),
+		descriptions: make(map[string]string),
 	}
+	s.RegisterInterface(orgvarlinkserviceNew(&s))
 
-	// Every service has the org.varlink.service interface
-	d := orgvarlinkserviceNew()
-	s.RegisterInterface(&d, MethodMap{
-		"GetInfo":                 s.getInfo,
-		"GetInterfaceDescription": s.getInterfaceDescription,
-	})
-
-	return s
+	return &s
 }

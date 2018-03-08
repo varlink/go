@@ -10,10 +10,6 @@ type getInfo_Out struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }
 
-type getInterfaceDescription_In struct {
-	Interface string `json:"interface"`
-}
-
 type getInterfaceDescription_Out struct {
 	Description string `json:"description,omitempty"`
 }
@@ -34,10 +30,21 @@ type invalidParameter_Error struct {
 	Parameter string `json:"parameter,omitempty"`
 }
 
-func orgvarlinkserviceNew() Interface {
-	return Interface{
-		Name: `org.varlink.service`,
-		Description: `# The Varlink Service Interface is provided by every varlink service. It
+type orgvarlinkserviceInterface interface {
+	GetInterfaceDescription(c Call, name string) error
+	GetInfo(c Call) error
+}
+
+type orgvarlinkserviceBase struct {
+	orgvarlinkserviceInterface
+}
+
+func (s *orgvarlinkserviceBase) VarlinkGetName() string {
+	return `org.varlink.service`
+}
+
+func (s *orgvarlinkserviceBase) VarlinkGetDescription() string {
+	return `# The Varlink Service Interface is provided by every varlink service. It
 # describes the service and the interfaces it implements.
 interface org.varlink.service
 
@@ -65,10 +72,29 @@ error MethodNotFound (method: string)
 error MethodNotImplemented (method: string)
 
 # One of the passed parameters is invalid.
-error InvalidParameter (parameter: string)`,
-		Methods: MethodMap{
-			"GetInfo":                 nil,
-			"GetInterfaceDescription": nil,
-		},
+error InvalidParameter (parameter: string)`
+}
+
+func (s *orgvarlinkserviceBase) VarlinkDispatch(call Call, methodname string) error {
+	switch methodname {
+	case "GetInterfaceDescription":
+		var in struct {
+			Name string `json:"interface"`
+		}
+		err := call.GetParameters(&in)
+		if err != nil {
+			return call.ReplyInvalidParameter("parameters")
+		}
+
+		return s.orgvarlinkserviceInterface.GetInterfaceDescription(call, in.Name)
+
+	case "GetInfo":
+		return s.orgvarlinkserviceInterface.GetInfo(call)
+
+	default:
+		return call.ReplyMethodNotFound(methodname)
 	}
+}
+func orgvarlinkserviceNew(i orgvarlinkserviceInterface) *orgvarlinkserviceBase {
+	return &orgvarlinkserviceBase{i}
 }

@@ -11,8 +11,9 @@ import (
 // client can be terminated by returning an error from the call instead
 // of sending a reply or error reply.
 type Call struct {
-	writer *bufio.Writer
-	in     *serviceCall
+	writer    *bufio.Writer
+	in        *serviceCall
+	Continues bool
 }
 
 // WantsMore indicates if the calling client accepts more than one reply.
@@ -53,14 +54,12 @@ func (c *Call) sendMessage(r *serviceReply) error {
 
 // Reply sends a reply to this method call.
 func (c *Call) Reply(parameters interface{}) error {
-	return c.sendMessage(&serviceReply{
-		Parameters: parameters,
-	})
-}
+	if !c.Continues {
+		return c.sendMessage(&serviceReply{
+			Parameters: parameters,
+		})
+	}
 
-// ReplyContinues sends a reply to this method call. The caller asked with the "more"
-// flag, this reply carries the "continues" flag.
-func (c *Call) ReplyContinues(parameters interface{}) error {
 	if !c.in.More {
 		return fmt.Errorf("call did not set more, it does not expect continues")
 	}
@@ -87,24 +86,10 @@ func (c *Call) ReplyError(name string, parameters interface{}) error {
 	})
 }
 
-func (c *Call) replyInterfaceNotFound(i string) error {
-	return c.sendMessage(&serviceReply{
-		Error:      "org.varlink.service.InterfaceNotFound",
-		Parameters: interfaceNotFound_Error{Interface: i},
-	})
-}
-
-func (c *Call) replyMethodNotFound(m string) error {
+func (c *Call) ReplyMethodNotFound(m string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.MethodNotFound",
 		Parameters: methodNotFound_Error{Method: m},
-	})
-}
-
-func (c *Call) replyMethodNotImplemented(m string) error {
-	return c.sendMessage(&serviceReply{
-		Error:      "org.varlink.service.MethodNotImplemented",
-		Parameters: methodNotImplemented_Error{Method: m},
 	})
 }
 
@@ -113,5 +98,12 @@ func (c *Call) ReplyInvalidParameter(p string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.InvalidParameter",
 		Parameters: invalidParameter_Error{Parameter: p},
+	})
+}
+
+func (c *Call) ReplyMethodNotImplemented(m string) error {
+	return c.sendMessage(&serviceReply{
+		Error:      "org.varlink.service.MethodNotImplemented",
+		Parameters: methodNotImplemented_Error{Method: m},
 	})
 }

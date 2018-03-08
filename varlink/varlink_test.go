@@ -120,6 +120,7 @@ func TestService(t *testing.T) {
 	})
 }
 
+/*
 func TestMoreService(t *testing.T) {
 	testFunc := func(c Call) error {
 		return nil
@@ -166,3 +167,4 @@ func TestMoreService(t *testing.T) {
 			b.String())
 	})
 }
+*/
