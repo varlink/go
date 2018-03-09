@@ -1,7 +1,7 @@
 package varlink_test
 
 // test with no internal access
-/*
+
 import (
 	"fmt"
 	"github.com/varlink/go/varlink"
@@ -10,23 +10,34 @@ import (
 	"time"
 )
 
-func testFunc(c varlink.Call) error {
-	return nil
+type VarlinkInterface struct{}
+
+func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {
+	return call.ReplyMethodNotImplemented(methodname)
+}
+func (s *VarlinkInterface) VarlinkGetName() string {
+	return `org.example.test`
+}
+
+func (s *VarlinkInterface) VarlinkGetDescription() string {
+	return "#"
+}
+
+type VarlinkInterface2 struct{}
+
+func (s *VarlinkInterface2) VarlinkDispatch(call varlink.Call, methodname string) error {
+	return call.ReplyMethodNotImplemented(methodname)
+}
+func (s *VarlinkInterface2) VarlinkGetName() string {
+	return `org.example.test2`
+}
+
+func (s *VarlinkInterface2) VarlinkGetDescription() string {
+	return "#"
 }
 
 func TestRegisterService(t *testing.T) {
-	newTestInterface := func() varlink.Interface {
-		return varlink.Interface{
-			Name:        `org.example.more`,
-			Description: `#`,
-			Methods: varlink.MethodMap{
-				"Ping":        nil,
-				"TestMore":    nil,
-				"StopServing": nil,
-			},
-		}
-	}
-
+	newTestInterface := new(VarlinkInterface)
 	service := varlink.NewService(
 		"Varlink",
 		"Varlink Test",
@@ -34,19 +45,11 @@ func TestRegisterService(t *testing.T) {
 		"https://github.com/varlink/go/varlink",
 	)
 
-	d := newTestInterface()
-
-	m := varlink.MethodMap{
-		"TestMore":    testFunc,
-		"StopServing": testFunc,
-		"Ping":        testFunc,
-	}
-
-	if err := service.RegisterInterface(&d, m); err != nil {
+	if err := service.RegisterInterface(newTestInterface); err != nil {
 		t.Fatalf("Couldn't register service: %v", err)
 	}
 
-	if err := service.RegisterInterface(&d, m); err == nil {
+	if err := service.RegisterInterface(newTestInterface); err == nil {
 		t.Fatal("Could register service twice")
 	}
 
@@ -54,42 +57,10 @@ func TestRegisterService(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	n := newTestInterface()
+	n := new(VarlinkInterface2)
 
-	if err := service.RegisterInterface(&n, m); err == nil {
+	if err := service.RegisterInterface(n); err == nil {
 		t.Fatal("Could register service while running")
 	}
 	service.Stop()
 }
-
-func TestRegisterWrongMethod(t *testing.T) {
-	newTestInterface := func() varlink.Interface {
-		return varlink.Interface{
-			Name:        `org.example.more`,
-			Description: `#`,
-			Methods: varlink.MethodMap{
-				"Ping":        nil,
-				"TestMore":    nil,
-				"StopServing": nil,
-			},
-		}
-	}
-
-	service := varlink.NewService(
-		"Varlink",
-		"Varlink Test",
-		"1",
-		"https://github.com/varlink/go/varlink",
-	)
-
-	d := newTestInterface()
-
-	m := varlink.MethodMap{
-		"Foo": testFunc,
-	}
-
-	if err := service.RegisterInterface(&d, m); err == nil {
-		t.Fatal("Could add method not part of interface")
-	}
-}
-*/

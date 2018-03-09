@@ -120,23 +120,21 @@ func TestService(t *testing.T) {
 	})
 }
 
-/*
-func TestMoreService(t *testing.T) {
-	testFunc := func(c Call) error {
-		return nil
-	}
+type VarlinkInterface struct{}
 
-	newTestInterface := func() Interface {
-		return Interface{
-			Name:        `org.example.more`,
-			Description: `#`,
-			Methods: MethodMap{
-				"Ping":        nil,
-				"TestMore":    nil,
-				"StopServing": nil,
-			},
-		}
-	}
+func (s *VarlinkInterface) VarlinkDispatch(call Call, methodname string) error {
+	return call.ReplyMethodNotImplemented(methodname)
+}
+func (s *VarlinkInterface) VarlinkGetName() string {
+	return `org.example.test`
+}
+
+func (s *VarlinkInterface) VarlinkGetDescription() string {
+	return "#"
+}
+
+func TestMoreService(t *testing.T) {
+	newTestInterface := new(VarlinkInterface)
 
 	service := NewService(
 		"Varlink",
@@ -145,14 +143,7 @@ func TestMoreService(t *testing.T) {
 		"https://github.com/varlink/go/varlink",
 	)
 
-	d := newTestInterface()
-
-	m := MethodMap{
-		"TestMore":    testFunc,
-		"StopServing": testFunc,
-	}
-
-	if err := service.RegisterInterface(&d, m); err != nil {
+	if err := service.RegisterInterface(newTestInterface); err != nil {
 		t.Fatalf("Couldn't register service: %v", err)
 	}
 
@@ -167,4 +158,3 @@ func TestMoreService(t *testing.T) {
 			b.String())
 	})
 }
-*/
