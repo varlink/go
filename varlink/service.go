@@ -30,8 +30,8 @@ type serviceReply struct {
 	Error      string      `json:"error,omitempty"`
 }
 
-// Service represents an active varlink service. In addition to the custom varlink Interfaces, every service
-// implements the org.varlink.service interface, which allows clients to retrieve information about the
+// Service represents an active varlink service. In addition to the registered custom varlink Interfaces, every service
+// implements the org.varlink.service interface which allows clients to retrieve information about the
 // running service.
 type Service struct {
 	vendor       string
