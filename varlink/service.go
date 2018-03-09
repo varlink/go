@@ -144,6 +144,7 @@ func (s *Service) Run(address string) error {
 	switch protocol {
 	case "unix":
 		if addr[0] != '@' {
+			defer os.Remove(addr)
 			os.Remove(addr)
 		}
 
