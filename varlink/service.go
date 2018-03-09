@@ -34,7 +34,6 @@ type serviceReply struct {
 // implements the org.varlink.service interface, which allows clients to retrieve information about the
 // running service.
 type Service struct {
-	orgvarlinkserviceBase
 	vendor       string
 	product      string
 	version      string
