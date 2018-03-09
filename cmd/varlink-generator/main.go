@@ -11,6 +11,41 @@ import (
 	"github.com/varlink/go/varlink/idl"
 )
 
+var goKeywords = map[string]struct{}{
+	"break":       {},
+	"case":        {},
+	"chan":        {},
+	"const":       {},
+	"continue":    {},
+	"default":     {},
+	"defer":       {},
+	"else":        {},
+	"fallthrough": {},
+	"for":         {},
+	"func":        {},
+	"go":          {},
+	"goto":        {},
+	"if":          {},
+	"import":      {},
+	"interface":   {},
+	"map":         {},
+	"package":     {},
+	"range":       {},
+	"return":      {},
+	"select":      {},
+	"struct":      {},
+	"switch":      {},
+	"type":        {},
+	"var":         {},
+}
+
+func sanitizeGoName(name string) string {
+	if _, ok := goKeywords[name]; !ok {
+		return name
+	}
+	return name + "A"
+}
+
 func writeTypeString(b *bytes.Buffer, t *idl.Type, level int) {
 	switch t.Kind {
 	case idl.TypeBool:
@@ -40,7 +75,7 @@ func writeTypeString(b *bytes.Buffer, t *idl.Type, level int) {
 			if i > 0 {
 				b.WriteString("; ")
 			}
-			b.WriteString(field.Name + " ")
+			b.WriteString(sanitizeGoName(field.Name) + " ")
 			writeTypeString(b, field.Type, level)
 		}
 		if level > 0 {
@@ -122,7 +157,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		if len(e.Type.Fields) > 0 {
 			writeType(&b, "var out", e.Type, true, 1)
 			for _, field := range e.Type.Fields {
-				b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "\n")
+				b.WriteString("\tout." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
 			}
 			b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", &out)\n")
 		} else {
@@ -141,7 +176,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		if len(m.Out.Fields) > 0 {
 			writeType(&b, "var out", m.Out, true, 1)
 			for _, field := range m.Out.Fields {
-				b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "\n")
+				b.WriteString("\tout." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
 			}
 			b.WriteString("\treturn c.Reply(&out)\n")
 		} else {
