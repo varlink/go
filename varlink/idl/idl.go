@@ -1,3 +1,4 @@
+// Package idl provides a varlink interface description parser.
 package idl
 
 import (
