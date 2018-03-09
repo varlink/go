@@ -12,7 +12,7 @@ type clientCall struct {
 	Method     string      `json:"method"`
 	Parameters interface{} `json:"parameters,omitempty"`
 	More       bool        `json:"more,omitempty"`
-	OneShot    bool        `json:"more,omitempty"`
+	OneShot    bool        `json:"oneshot,omitempty"`
 }
 
 // clientReply represents the incoming message received by the Client from a Service.
