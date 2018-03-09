@@ -143,11 +143,7 @@ func (s *Service) Run(address string) error {
 
 	switch protocol {
 	case "unix":
-		if addr[0] != '@' {
-			defer os.Remove(addr)
-			os.Remove(addr)
-		}
-
+		break
 	case "tcp":
 		break
 
@@ -157,6 +153,13 @@ func (s *Service) Run(address string) error {
 
 	l := activationListener()
 	if l == nil {
+		if protocol == "unix" {
+			if addr[0] != '@' {
+				defer os.Remove(addr)
+				os.Remove(addr)
+			}
+		}
+
 		var err error
 		l, err = net.Listen(protocol, addr)
 		if err != nil {
