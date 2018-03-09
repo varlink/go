@@ -76,6 +76,17 @@ func TestService(t *testing.T) {
 			b.String())
 	})
 
+	t.Run("GetInterfaceDescriptionNullParameters", func(t *testing.T) {
+		var b bytes.Buffer
+		w := bufio.NewWriter(&b)
+		msg := []byte(`{"method":"org.varlink.service.GetInterfaceDescription","parameters": null}`)
+		if err := service.handleMessage(w, msg); err != nil {
+			t.Fatalf("HandleMessage returned error: %v", err)
+		}
+		expect(t, `{"parameters":{"parameter":"parameters"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
+			b.String())
+	})
+
 	t.Run("GetInterfaceDescriptionNoInterface", func(t *testing.T) {
 		var b bytes.Buffer
 		w := bufio.NewWriter(&b)
