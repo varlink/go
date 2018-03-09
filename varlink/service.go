@@ -84,22 +84,7 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	methodname := in.Method[r+1:]
 
 	if interfacename == "org.varlink.service" {
-		switch methodname {
-		case "GetInfo":
-			return s.getInfo(c)
-		case "GetInterfaceDescription":
-			var in struct {
-				Interface string `json:"interface"`
-			}
-			err := c.GetParameters(&in)
-			if err != nil {
-				return c.ReplyInvalidParameter("parameters")
-			}
-			return s.getInterfaceDescription(c, in.Interface)
-
-		default:
-			return c.ReplyMethodNotFound(methodname)
-		}
+		return s.orgvarlinkserviceDispatch(c, methodname)
 	}
 
 	// Find the interface and method in our service

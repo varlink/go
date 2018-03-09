@@ -64,6 +64,25 @@ func (c *Call) replyGetInterfaceDescription(description string) error {
 	return c.Reply(&out)
 }
 
+func (s *Service) orgvarlinkserviceDispatch(c Call, methodname string) error {
+	switch methodname {
+	case "GetInfo":
+		return s.getInfo(c)
+	case "GetInterfaceDescription":
+		var in struct {
+			Interface string `json:"interface"`
+		}
+		err := c.GetParameters(&in)
+		if err != nil {
+			return c.ReplyInvalidParameter("parameters")
+		}
+		return s.getInterfaceDescription(c, in.Interface)
+
+	default:
+		return c.ReplyMethodNotFound(methodname)
+	}
+}
+
 func (s *orgvarlinkserviceInterface) VarlinkDispatch(call Call, methodname string) error {
 	return nil
 }
