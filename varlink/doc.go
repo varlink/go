@@ -36,7 +36,16 @@ Generated Go module in a orgexamplethis/orgexamplethis.go file:
 Example service:
 	import ("orgexamplethis")
 
+	type Data struct {
+		orgexamplethis.VarlinkInterface
+		data string
+	}
+
 	data := Data{data: "test"}
+
+	func (d *Data) Ping(call orgexamplethis.VarlinkCall, ping string) error {
+		return call.ReplyPing(ping)
+	}
 
 	service, _ = varlink.NewService(
 	        "Example",
@@ -45,7 +54,7 @@ Example service:
 	         "https://example.org/this",
 	)
 
-	service.RegisterInterface(orgexample.VarlinkNew(&m))
-	err := service.Listen("tcp:0.0.0.0", 0)
+	service.RegisterInterface(orgexamplethis.VarlinkNew(&data))
+	err := service.Listen("unix:@orgexamplethis", 0)
 */
 package varlink
