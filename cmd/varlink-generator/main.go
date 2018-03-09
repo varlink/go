@@ -214,9 +214,8 @@ func generateTemplate(description string) (string, []byte, error) {
 				"\t\t}\n")
 			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call}")
 			if len(m.In.Fields) > 0 {
-				b.WriteString(", ")
 				for _, field := range m.In.Fields {
-					b.WriteString("in." + strings.Title(field.Name))
+					b.WriteString(", in." + strings.Title(field.Name))
 				}
 			}
 			b.WriteString(")\n")
