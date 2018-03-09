@@ -106,7 +106,7 @@ func (c *Connection) Close() error {
 }
 
 // Returns a new connection to the given address.
-func NewConnection(address string) (Connection, error) {
+func NewConnection(address string) (*Connection, error) {
 	var err error
 
 	words := strings.SplitN(address, ":", 2)
@@ -130,11 +130,11 @@ func NewConnection(address string) (Connection, error) {
 	c := Connection{}
 	c.conn, err = net.Dial(protocol, addr)
 	if err != nil {
-		return c, err
+		return &c, err
 	}
 
 	c.reader = bufio.NewReader(c.conn)
 	c.writer = bufio.NewWriter(c.conn)
 
-	return c, nil
+	return &c, nil
 }

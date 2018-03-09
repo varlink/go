@@ -19,7 +19,7 @@ func expect(t *testing.T, expected string, returned string) {
 }
 
 func TestService(t *testing.T) {
-	service := NewService(
+	service, _ := NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",
@@ -187,7 +187,7 @@ func (s *VarlinkInterface) VarlinkGetDescription() string {
 func TestMoreService(t *testing.T) {
 	newTestInterface := new(VarlinkInterface)
 
-	service := NewService(
+	service, _ := NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",

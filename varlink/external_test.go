@@ -38,7 +38,7 @@ func (s *VarlinkInterface2) VarlinkGetDescription() string {
 
 func TestRegisterService(t *testing.T) {
 	newTestInterface := new(VarlinkInterface)
-	service := varlink.NewService(
+	service, _ := varlink.NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",
@@ -68,7 +68,7 @@ func TestRegisterService(t *testing.T) {
 
 func TestUnix(t *testing.T) {
 	newTestInterface := new(VarlinkInterface)
-	service := varlink.NewService(
+	service, _ := varlink.NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",

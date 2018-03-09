@@ -218,7 +218,7 @@ func (s *Service) RegisterInterface(iface dispatcher) error {
 }
 
 // NewService creates a new Service which implements the list of given varlink interfaces.
-func NewService(vendor string, product string, version string, url string) *Service {
+func NewService(vendor string, product string, version string, url string) (*Service, error) {
 	s := Service{
 		vendor:       vendor,
 		product:      product,
@@ -229,5 +229,5 @@ func NewService(vendor string, product string, version string, url string) *Serv
 	}
 	s.RegisterInterface(orgvarlinkserviceNew())
 
-	return &s
+	return &s, nil
 }
