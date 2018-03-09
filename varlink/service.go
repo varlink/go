@@ -45,7 +45,7 @@ type Service struct {
 }
 
 func (s *Service) getInfo(c Call) error {
-	return c.ReplyGetInfo(s.vendor, s.product, s.version, s.url, s.names)
+	return c.replyGetInfo(s.vendor, s.product, s.version, s.url, s.names)
 }
 
 func (s *Service) getInterfaceDescription(c Call, name string) error {
@@ -55,10 +55,10 @@ func (s *Service) getInterfaceDescription(c Call, name string) error {
 
 	description, ok := s.descriptions[name]
 	if !ok {
-		return c.ReplyInvalidParameter("interface")
+		return c.ReplyInterfaceNotFound("interface")
 	}
 
-	return c.ReplyGetInterfaceDescription(description)
+	return c.replyGetInterfaceDescription(description)
 }
 
 func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {

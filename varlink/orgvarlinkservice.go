@@ -40,7 +40,7 @@ func (c *Call) ReplyInvalidParameter(parameter string) error {
 	return doReplyError(c, "org.varlink.service.InvalidParameter", &out)
 }
 
-func (c *Call) ReplyGetInfo(vendor string, product string, version string, url string, interfaces []string) error {
+func (c *Call) replyGetInfo(vendor string, product string, version string, url string, interfaces []string) error {
 	var out struct {
 		Vendor     string   `json:"vendor,omitempty"`
 		Product    string   `json:"product,omitempty"`
@@ -56,7 +56,7 @@ func (c *Call) ReplyGetInfo(vendor string, product string, version string, url s
 	return c.Reply(&out)
 }
 
-func (c *Call) ReplyGetInterfaceDescription(description string) error {
+func (c *Call) replyGetInterfaceDescription(description string) error {
 	var out struct {
 		Description string `json:"description,omitempty"`
 	}

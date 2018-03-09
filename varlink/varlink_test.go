@@ -105,7 +105,7 @@ func TestService(t *testing.T) {
 		if err := service.handleMessage(w, msg); err != nil {
 			t.Fatalf("HandleMessage returned error: %v", err)
 		}
-		expect(t, `{"parameters":{"parameter":"interface"},"error":"org.varlink.service.InvalidParameter"}`+"\000",
+		expect(t, `{"parameters":{"interface":"interface"},"error":"org.varlink.service.InterfaceNotFound"}`+"\000",
 			b.String())
 	})
 
