@@ -1,11 +1,6 @@
 // Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator
 package varlink
 
-type orgvarlinkserviceInterface interface {
-	GetInterfaceDescription(c Call, interfaceA string) error
-	GetInfo(c Call) error
-}
-
 func doReplyError(c *Call, name string, parameters interface{}) error {
 	return c.sendMessage(&serviceReply{
 		Error:      name,
@@ -69,37 +64,15 @@ func (c *Call) ReplyGetInterfaceDescription(description string) error {
 	return c.Reply(&out)
 }
 
-func (s *orgvarlinkserviceBase) GetInfo(c Call) error {
-	return c.ReplyMethodNotImplemented("GetInfo")
+func (s *orgvarlinkserviceInterface) VarlinkDispatch(call Call, methodname string) error {
+	return nil
 }
 
-func (s *orgvarlinkserviceBase) GetInterfaceDescription(c Call, interfaceA string) error {
-	return c.ReplyMethodNotImplemented("GetInterfaceDescription")
-}
-
-func (s *orgvarlinkserviceBase) VarlinkDispatch(call Call, methodname string) error {
-	switch methodname {
-	case "GetInfo":
-		return s.orgvarlinkserviceInterface.GetInfo(call)
-	case "GetInterfaceDescription":
-		var in struct {
-			Interface string `json:"interface"`
-		}
-		err := call.GetParameters(&in)
-		if err != nil {
-			return call.ReplyInvalidParameter("parameters")
-		}
-		return s.orgvarlinkserviceInterface.GetInterfaceDescription(call, in.Interface)
-
-	default:
-		return call.ReplyMethodNotFound(methodname)
-	}
-}
-func (s *orgvarlinkserviceBase) VarlinkGetName() string {
+func (s *orgvarlinkserviceInterface) VarlinkGetName() string {
 	return `org.varlink.service`
 }
 
-func (s *orgvarlinkserviceBase) VarlinkGetDescription() string {
+func (s *orgvarlinkserviceInterface) VarlinkGetDescription() string {
 	return `# The Varlink Service Interface is provided by every varlink service. It
 # describes the service and the interfaces it implements.
 interface org.varlink.service
@@ -131,10 +104,8 @@ error MethodNotImplemented (method: string)
 error InvalidParameter (parameter: string)`
 }
 
-type orgvarlinkserviceBase struct {
-	orgvarlinkserviceInterface
-}
+type orgvarlinkserviceInterface struct{}
 
-func orgvarlinkserviceNew(m orgvarlinkserviceInterface) *orgvarlinkserviceBase {
-	return &orgvarlinkserviceBase{m}
+func orgvarlinkserviceNew() *orgvarlinkserviceInterface {
+	return &orgvarlinkserviceInterface{}
 }

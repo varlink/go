@@ -44,11 +44,11 @@ type Service struct {
 	running      bool
 }
 
-func (s *Service) GetInfo(c Call) error {
+func (s *Service) getInfo(c Call) error {
 	return c.ReplyGetInfo(s.vendor, s.product, s.version, s.url, s.names)
 }
 
-func (s *Service) GetInterfaceDescription(c Call, name string) error {
+func (s *Service) getInterfaceDescription(c Call, name string) error {
 	if name == "" {
 		return c.ReplyInvalidParameter("interface")
 	}
@@ -82,6 +82,25 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
+
+	if interfacename == "org.varlink.service" {
+		switch methodname {
+		case "GetInfo":
+			return s.getInfo(c)
+		case "GetInterfaceDescription":
+			var in struct {
+				Interface string `json:"interface"`
+			}
+			err := c.GetParameters(&in)
+			if err != nil {
+				return c.ReplyInvalidParameter("parameters")
+			}
+			return s.getInterfaceDescription(c, in.Interface)
+
+		default:
+			return c.ReplyMethodNotFound(methodname)
+		}
+	}
 
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
@@ -222,7 +241,7 @@ func NewService(vendor string, product string, version string, url string) *Serv
 		interfaces:   make(map[string]dispatcher),
 		descriptions: make(map[string]string),
 	}
-	s.RegisterInterface(orgvarlinkserviceNew(&s))
+	s.RegisterInterface(orgvarlinkserviceNew())
 
 	return &s
 }
