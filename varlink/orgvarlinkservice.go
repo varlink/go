@@ -7,6 +7,7 @@ func doReplyError(c *Call, name string, parameters interface{}) error {
 	})
 }
 
+// ReplyInterfaceNotFound sends a org.varlink.service errror reply to this method call
 func (c *Call) ReplyInterfaceNotFound(interfaceA string) error {
 	var out struct {
 		Interface string `json:"interface,omitempty"`
@@ -15,6 +16,7 @@ func (c *Call) ReplyInterfaceNotFound(interfaceA string) error {
 	return doReplyError(c, "org.varlink.service.InterfaceNotFound", &out)
 }
 
+// ReplyMethodNotFound sends a org.varlink.service errror reply to this method call
 func (c *Call) ReplyMethodNotFound(method string) error {
 	var out struct {
 		Method string `json:"method,omitempty"`
@@ -23,6 +25,7 @@ func (c *Call) ReplyMethodNotFound(method string) error {
 	return doReplyError(c, "org.varlink.service.MethodNotFound", &out)
 }
 
+// ReplyMethodNotImplemented sends a org.varlink.service errror reply to this method call
 func (c *Call) ReplyMethodNotImplemented(method string) error {
 	var out struct {
 		Method string `json:"method,omitempty"`
@@ -31,6 +34,7 @@ func (c *Call) ReplyMethodNotImplemented(method string) error {
 	return doReplyError(c, "org.varlink.service.MethodNotImplemented", &out)
 }
 
+// ReplyInvalidParameter sends a org.varlink.service errror reply to this method call
 func (c *Call) ReplyInvalidParameter(parameter string) error {
 	var out struct {
 		Parameter string `json:"parameter,omitempty"`
@@ -44,13 +48,13 @@ func (c *Call) replyGetInfo(vendor string, product string, version string, url s
 		Vendor     string   `json:"vendor,omitempty"`
 		Product    string   `json:"product,omitempty"`
 		Version    string   `json:"version,omitempty"`
-		Url        string   `json:"url,omitempty"`
+		URL        string   `json:"url,omitempty"`
 		Interfaces []string `json:"interfaces,omitempty"`
 	}
 	out.Vendor = vendor
 	out.Product = product
 	out.Version = version
-	out.Url = url
+	out.URL = url
 	out.Interfaces = interfaces
 	return c.Reply(&out)
 }
