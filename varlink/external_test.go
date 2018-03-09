@@ -53,12 +53,12 @@ func TestRegisterService(t *testing.T) {
 		t.Fatal("Could register service twice")
 	}
 
-	defer func() { service.Stop() }()
+	defer func() { service.Shutdown() }()
 
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Run(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid()))
+		servererror <- service.Listen(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid()))
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -69,10 +69,10 @@ func TestRegisterService(t *testing.T) {
 		t.Fatal("Could register service while running")
 	}
 	time.Sleep(time.Second / 5)
-	service.Stop()
+	service.Shutdown()
 
 	if err := <-servererror; err != nil {
-		t.Fatalf("service.Run(): %v", err)
+		t.Fatalf("service.Listen(): %v", err)
 	}
 }
 
@@ -92,14 +92,14 @@ func TestUnix(t *testing.T) {
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Run(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid()))
+		servererror <- service.Listen(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid()))
 	}()
 
 	time.Sleep(time.Second / 5)
-	service.Stop()
+	service.Shutdown()
 
 	if err := <-servererror; err != nil {
-		t.Fatalf("service.Run(): %v", err)
+		t.Fatalf("service.Listen(): %v", err)
 	}
 }
 
@@ -120,11 +120,11 @@ func TestListen(t *testing.T) {
 
 	go func() { time.Sleep(time.Second); service.Stop() }()
 	defer func() { time.Sleep(time.Second); service.Stop() }()
-	err := service.Run(fmt.Sprintf("unix:@varlinkexternal_TestListen%d", os.Getpid()))
+	err := service.Listen(fmt.Sprintf("unix:@varlinkexternal_TestListen%d", os.Getpid()))
 	if err == nil {
-		t.Fatalf("service.Run() despite LISTEN_FDS set to `foo`")
+		t.Fatalf("service.Listen() despite LISTEN_FDS set to `foo`")
 	}
-	t.Fatalf("service.Run(): %v", err)
+	t.Fatalf("service.Listen(): %v", err)
 
 }
 */

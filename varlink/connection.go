@@ -125,7 +125,7 @@ func NewConnection(address string) (*Connection, error) {
 	c := Connection{}
 	c.conn, err = net.Dial(protocol, addr)
 	if err != nil {
-		return &c, err
+		return nil, err
 	}
 
 	c.reader = bufio.NewReader(c.conn)

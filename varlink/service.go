@@ -44,7 +44,7 @@ type Service struct {
 	descriptions map[string]string
 	running      bool
 	listener     net.Listener
-	sync.RWMutex
+	sync.Mutex
 }
 
 func (s *Service) getInfo(c Call) error {
@@ -124,14 +124,14 @@ func activationListener() net.Listener {
 	return listener
 }
 
-// Stop stops a running Service.
-func (s *Service) Stop() {
+// Shutdown shuts down the listener of a running service.
+func (s *Service) Shutdown() {
 	s.running = false
-	s.RLock()
+	s.Lock()
 	if s.listener != nil {
 		s.listener.Close()
 	}
-	s.RUnlock()
+	s.Unlock()
 }
 
 func (s *Service) handleConnection(conn net.Conn) {
@@ -155,15 +155,14 @@ func (s *Service) handleConnection(conn net.Conn) {
 	conn.Close()
 }
 
-// Tear down all connections
 func (s *Service) teardown() {
 	s.Lock()
 	s.listener = nil
 	s.Unlock()
 }
 
-// Run starts a Service.
-func (s *Service) Run(address string) error {
+// Listen starts a Service.
+func (s *Service) Listen(address string) error {
 	defer func() { s.running = false }()
 	s.running = true
 
