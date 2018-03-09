@@ -55,7 +55,7 @@ func (s *Service) getInterfaceDescription(c Call, name string) error {
 
 	description, ok := s.descriptions[name]
 	if !ok {
-		return c.ReplyInterfaceNotFound("interface")
+		return c.ReplyInvalidParameter("interface")
 	}
 
 	return c.replyGetInterfaceDescription(description)
