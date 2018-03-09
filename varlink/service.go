@@ -97,7 +97,9 @@ type Service struct {
 	running      bool
 	listener     net.Listener
 	conncounter  int64
-	sync.Mutex
+	mutex        sync.Mutex
+	protocol     string
+	address      string
 }
 
 func (s *Service) getInfo(c Call) error {
@@ -181,15 +183,15 @@ func activationListener() net.Listener {
 // Shutdown shuts down the listener of a running service.
 func (s *Service) Shutdown() {
 	s.running = false
-	s.Lock()
+	s.mutex.Lock()
 	if s.listener != nil {
 		s.listener.Close()
 	}
-	s.Unlock()
+	s.mutex.Unlock()
 }
 
 func (s *Service) handleConnection(conn net.Conn, wg *sync.WaitGroup) {
-	defer func() { s.Lock(); s.conncounter--; s.Unlock(); wg.Done() }()
+	defer func() { s.mutex.Lock(); s.conncounter--; s.mutex.Unlock(); wg.Done() }()
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
@@ -211,27 +213,26 @@ func (s *Service) handleConnection(conn net.Conn, wg *sync.WaitGroup) {
 }
 
 func (s *Service) teardown() {
-	s.Lock()
+	s.mutex.Lock()
 	s.listener = nil
-	s.Unlock()
+	s.running = false
+	s.protocol = ""
+	s.address = ""
+	s.mutex.Unlock()
 }
 
-// Listen starts a Service.
-func (s *Service) Listen(address string, timeout time.Duration) error {
-	defer func() { s.running = false }()
-	s.running = true
-
+func (s *Service) parseAddress(address string) error {
 	words := strings.SplitN(address, ":", 2)
-	protocol := words[0]
-	addr := words[1]
+	s.protocol = words[0]
+	s.address = words[1]
 
 	// Ignore parameters after ';'
-	words = strings.SplitN(addr, ";", 2)
+	words = strings.SplitN(s.address, ";", 2)
 	if words != nil {
-		addr = words[0]
+		s.address = words[0]
 	}
 
-	switch protocol {
+	switch s.protocol {
 	case "unix":
 		break
 	case "tcp":
@@ -240,9 +241,10 @@ func (s *Service) Listen(address string, timeout time.Duration) error {
 	default:
 		return fmt.Errorf("Unknown protocol")
 	}
+	return nil
+}
 
-	defer s.teardown()
-
+func getListener(addr string, protocol string) (net.Listener, error) {
 	l := activationListener()
 	if l == nil {
 		if protocol == "unix" && addr[0] != '@' {
@@ -252,44 +254,70 @@ func (s *Service) Listen(address string, timeout time.Duration) error {
 		var err error
 		l, err = net.Listen(protocol, addr)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if protocol == "unix" && addr[0] != '@' {
 			l.(*net.UnixListener).SetUnlinkOnClose(true)
 		}
 	}
+	return l, nil
+}
 
+func (s *Service) refreshTimeout(timeout time.Duration) error {
+	switch s.protocol {
+	case "unix":
+		if err := s.listener.(*net.UnixListener).SetDeadline(time.Now().Add(timeout)); err != nil {
+			return err
+		}
+
+	case "tcp":
+		if err := s.listener.(*net.TCPListener).SetDeadline(time.Now().Add(timeout)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Listen starts a Service.
+func (s *Service) Listen(address string, timeout time.Duration) error {
 	var wg sync.WaitGroup
-	defer func() { wg.Wait() }()
+	defer func() { s.teardown(); wg.Wait() }()
 
-	s.Lock()
+	s.mutex.Lock()
+	if s.running {
+		s.mutex.Unlock()
+		return fmt.Errorf("Listen(): already running")
+	}
+	s.mutex.Unlock()
+
+	s.parseAddress(address)
+
+	l, err := getListener(s.address, s.protocol)
+	if err != nil {
+		return err
+	}
+
+	s.mutex.Lock()
 	s.listener = l
-	s.Unlock()
+	s.running = true
+	s.mutex.Unlock()
 
 	for s.running {
 		if timeout != 0 {
-			switch protocol {
-			case "unix":
-				if err := l.(*net.UnixListener).SetDeadline(time.Now().Add(timeout)); err != nil {
-					return err
-				}
-
-			case "tcp":
-				if err := l.(*net.TCPListener).SetDeadline(time.Now().Add(timeout)); err != nil {
-					return err
-				}
+			if err := s.refreshTimeout(timeout); err != nil {
+				return err
 			}
 		}
 		conn, err := l.Accept()
 		if err != nil {
 			if err.(net.Error).Timeout() {
 				var last bool
-				s.Lock()
+				s.mutex.Lock()
 				if s.conncounter == 0 {
 					last = true
 				}
-				s.Unlock()
+				s.mutex.Unlock()
 				if last {
 					return nil
 				}
@@ -300,9 +328,9 @@ func (s *Service) Listen(address string, timeout time.Duration) error {
 			}
 			return err
 		}
-		s.Lock()
+		s.mutex.Lock()
 		s.conncounter++
-		s.Unlock()
+		s.mutex.Unlock()
 		wg.Add(1)
 		go s.handleConnection(conn, &wg)
 	}
