@@ -2,12 +2,14 @@ package varlink
 
 import (
 	"bufio"
+	"container/list"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -42,6 +44,9 @@ type Service struct {
 	names        []string
 	descriptions map[string]string
 	running      bool
+	connections  *list.List
+	listener     net.Listener
+	sync.RWMutex
 }
 
 func (s *Service) getInfo(c Call) error {
@@ -124,6 +129,57 @@ func activationListener() net.Listener {
 // Stop stops a running Service.
 func (s *Service) Stop() {
 	s.running = false
+	s.RLock()
+	if s.listener != nil {
+		s.listener.Close()
+	}
+	s.RUnlock()
+}
+
+func (s *Service) handleConnection(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+
+	for {
+		request, err := reader.ReadBytes('\x00')
+		if err != nil {
+			break
+		}
+
+		err = s.handleMessage(writer, request[:len(request)-1])
+		if err != nil {
+			// FIXME: report error
+			fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
+			break
+		}
+	}
+
+	conn.Close()
+}
+
+// Tear down all connections
+func (s *Service) teardown() {
+	s.Lock()
+	s.running = false
+	s.Unlock()
+
+	s.RLock()
+	if s.listener != nil {
+		s.listener.Close()
+	}
+	s.RUnlock()
+
+	s.RLock()
+	for e := s.connections.Front(); e != nil; e = e.Next() {
+		e.Value.(net.Conn).Close()
+	}
+	s.RUnlock()
+
+	s.Lock()
+	s.connections = list.New()
+	s.listener = nil
+	s.Unlock()
+
 }
 
 // Run starts a Service.
@@ -151,6 +207,8 @@ func (s *Service) Run(address string) error {
 		return fmt.Errorf("Unknown protocol")
 	}
 
+	defer s.teardown()
+
 	l := activationListener()
 	if l == nil {
 		if protocol == "unix" {
@@ -167,37 +225,23 @@ func (s *Service) Run(address string) error {
 		}
 	}
 
-	defer l.Close()
-
-	handleConnection := func(conn net.Conn) {
-		reader := bufio.NewReader(conn)
-		writer := bufio.NewWriter(conn)
-
-		for s.running {
-			request, err := reader.ReadBytes('\x00')
-			if err != nil {
-				break
-			}
-
-			err = s.handleMessage(writer, request[:len(request)-1])
-			if err != nil {
-				break
-			}
-		}
-
-		conn.Close()
-		if !s.running {
-			l.Close()
-		}
-	}
+	s.Lock()
+	s.listener = l
+	s.Unlock()
 
 	for s.running {
 		conn, err := l.Accept()
-		if err != nil && s.running {
+		if err != nil {
+			if !s.running {
+				return nil
+			}
 			return err
 		}
 
-		go handleConnection(conn)
+		s.Lock()
+		s.connections.PushBack(conn)
+		s.Unlock()
+		go s.handleConnection(conn)
 	}
 
 	return nil
@@ -229,6 +273,7 @@ func NewService(vendor string, product string, version string, url string) (*Ser
 		url:          url,
 		interfaces:   make(map[string]dispatcher),
 		descriptions: make(map[string]string),
+		connections:  list.New(),
 	}
 	err := s.RegisterInterface(orgvarlinkserviceNew())
 
