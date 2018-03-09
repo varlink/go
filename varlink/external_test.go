@@ -53,7 +53,9 @@ func TestRegisterService(t *testing.T) {
 		t.Fatal("Could register service twice")
 	}
 
-	go service.Run(fmt.Sprintf("unix:@varlinkexternal_test%d", os.Getpid()))
+	defer func() { time.Sleep(time.Second); service.Stop() }()
+
+	go service.Run(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid()))
 
 	time.Sleep(time.Second)
 
@@ -62,5 +64,51 @@ func TestRegisterService(t *testing.T) {
 	if err := service.RegisterInterface(n); err == nil {
 		t.Fatal("Could register service while running")
 	}
-	service.Stop()
 }
+
+func TestUnix(t *testing.T) {
+	newTestInterface := new(VarlinkInterface)
+	service := varlink.NewService(
+		"Varlink",
+		"Varlink Test",
+		"1",
+		"https://github.com/varlink/go/varlink",
+	)
+
+	if err := service.RegisterInterface(newTestInterface); err != nil {
+		t.Fatalf("Couldn't register service: %v", err)
+	}
+
+	go service.Run(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid()))
+
+	time.Sleep(time.Second)
+
+	service.Stop()
+	time.Sleep(time.Second)
+}
+
+/*
+func TestListen(t *testing.T) {
+	newTestInterface := new(VarlinkInterface)
+	service := varlink.NewService(
+		"Varlink",
+		"Varlink Test",
+		"1",
+		"https://github.com/varlink/go/varlink",
+	)
+
+	if err := service.RegisterInterface(newTestInterface); err != nil {
+		t.Fatalf("Couldn't register service: %v", err)
+	}
+	os.Setenv("LISTEN_FDS", "foo")
+
+	go func() { time.Sleep(time.Second); service.Stop() }()
+	defer func() { time.Sleep(time.Second); service.Stop() }()
+	err := service.Run(fmt.Sprintf("unix:@varlinkexternal_TestListen%d", os.Getpid()))
+	if err == nil {
+		t.Fatalf("service.Run() despite LISTEN_FDS set to `foo`")
+	}
+	t.Fatalf("service.Run(): %v", err)
+
+}
+*/
