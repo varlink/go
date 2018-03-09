@@ -126,6 +126,12 @@ type VarlinkInterface struct{}
 func (s *VarlinkInterface) VarlinkDispatch(call Call, methodname string) error {
 	switch methodname {
 	case "Ping":
+		if !call.WantsMore() {
+			return fmt.Errorf("More flag not passed")
+		}
+		if call.IsOneShot() {
+			return fmt.Errorf("OneShot flag set")
+		}
 		call.Continues = true
 		if err := call.Reply(nil); err != nil {
 			return err
