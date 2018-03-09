@@ -261,15 +261,12 @@ func (s *Service) Listen(address string, timeout time.Duration) error {
 		conn, err := l.Accept()
 		if err != nil {
 			if err.(net.Error).Timeout() {
-				var last bool
 				s.mutex.Lock()
 				if s.conncounter == 0 {
-					last = true
-				}
-				s.mutex.Unlock()
-				if last {
+					s.mutex.Unlock()
 					return nil
 				}
+				s.mutex.Unlock()
 				continue
 			}
 			if !s.running {
