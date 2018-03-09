@@ -100,7 +100,7 @@ func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-// Returns a new connection to the given address.
+// NewConnection returns a new connection to the given address.
 func NewConnection(address string) (*Connection, error) {
 	var err error
 
