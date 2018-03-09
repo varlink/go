@@ -149,7 +149,7 @@ func (s *Service) handleConnection(conn net.Conn) {
 		err = s.handleMessage(writer, request[:len(request)-1])
 		if err != nil {
 			// FIXME: report error
-			fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
+			//fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
 			break
 		}
 	}
