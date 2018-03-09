@@ -38,12 +38,15 @@ func (s *VarlinkInterface2) VarlinkGetDescription() string {
 
 func TestRegisterService(t *testing.T) {
 	newTestInterface := new(VarlinkInterface)
-	service, _ := varlink.NewService(
+	service, err := varlink.NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
 	)
+	if err != nil {
+		t.Fatalf("NewService(): %v", err)
+	}
 
 	if err := service.RegisterInterface(newTestInterface); err != nil {
 		t.Fatalf("Couldn't register service: %v", err)
@@ -78,21 +81,25 @@ func TestRegisterService(t *testing.T) {
 
 func TestUnix(t *testing.T) {
 	newTestInterface := new(VarlinkInterface)
-	service, _ := varlink.NewService(
+	service, err := varlink.NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
 	)
 
+	if err != nil {
+		t.Fatalf("NewService(): %v", err)
+	}
+
 	if err := service.RegisterInterface(newTestInterface); err != nil {
-		t.Fatalf("Couldn't register service: %v", err)
+		t.Fatalf("RegisterInterface(): %v", err)
 	}
 
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid()))
+		servererror <- service.Listen("unix:varlinkexternal_TestUnix")
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -103,28 +110,36 @@ func TestUnix(t *testing.T) {
 	}
 }
 
-/*
-func TestListen(t *testing.T) {
+func TestListenFDSNotInt(t *testing.T) {
 	newTestInterface := new(VarlinkInterface)
-	service := varlink.NewService(
+	service, err := varlink.NewService(
 		"Varlink",
 		"Varlink Test",
 		"1",
 		"https://github.com/varlink/go/varlink",
 	)
 
+	if err != nil {
+		t.Fatalf("NewService(): %v", err)
+	}
+
 	if err := service.RegisterInterface(newTestInterface); err != nil {
 		t.Fatalf("Couldn't register service: %v", err)
 	}
 	os.Setenv("LISTEN_FDS", "foo")
 
-	go func() { time.Sleep(time.Second); service.Stop() }()
-	defer func() { time.Sleep(time.Second); service.Stop() }()
-	err := service.Listen(fmt.Sprintf("unix:@varlinkexternal_TestListen%d", os.Getpid()))
-	if err == nil {
-		t.Fatalf("service.Listen() despite LISTEN_FDS set to `foo`")
-	}
-	t.Fatalf("service.Listen(): %v", err)
+	servererror := make(chan error)
 
+	go func() {
+		servererror <- service.Listen("unix:varlinkexternal_TestListenFDSNotInt")
+	}()
+
+	time.Sleep(time.Second / 5)
+	service.Stop()
+
+	err = <-servererror
+
+	if err != nil {
+		t.Fatalf("service.Run(): %v", err)
+	}
 }
-*/
