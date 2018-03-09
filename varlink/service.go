@@ -227,7 +227,7 @@ func NewService(vendor string, product string, version string, url string) (*Ser
 		interfaces:   make(map[string]dispatcher),
 		descriptions: make(map[string]string),
 	}
-	s.RegisterInterface(orgvarlinkserviceNew())
+	err := s.RegisterInterface(orgvarlinkserviceNew())
 
-	return &s, nil
+	return &s, err
 }
