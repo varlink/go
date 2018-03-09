@@ -150,7 +150,7 @@ func TestMoreService(t *testing.T) {
 	t.Run("MethodNotImplemented", func(t *testing.T) {
 		var b bytes.Buffer
 		w := bufio.NewWriter(&b)
-		msg := []byte(`{"method":"org.example.more.Ping"}`)
+		msg := []byte(`{"method":"org.example.test.Ping"}`)
 		if err := service.handleMessage(w, msg); err != nil {
 			t.Fatalf("HandleMessage returned error: %v", err)
 		}
