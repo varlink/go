@@ -3,10 +3,10 @@ package idl
 import (
 	"fmt"
 	"runtime"
-	"strings"
 	"testing"
 )
 
+/*
 func expect(t *testing.T, expected string, returned string) {
 	if strings.Compare(returned, expected) != 0 {
 		t.Fatalf("Expected(%d): `%s`\nGot(%d): `%s`\n",
@@ -14,6 +14,7 @@ func expect(t *testing.T, expected string, returned string) {
 			len(returned), returned)
 	}
 }
+*/
 
 func testParse(t *testing.T, pass bool, description string) {
 	_, _, line, _ := runtime.Caller(1)
