@@ -3,7 +3,6 @@ package varlink_test
 // test with no internal access
 
 import (
-	"fmt"
 	"github.com/varlink/go/varlink"
 	"os"
 	"testing"
@@ -61,7 +60,7 @@ func TestRegisterService(t *testing.T) {
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid()))
+		servererror <- service.Listen("unix:@varlinkexternal_TestRegisterService", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -99,7 +98,7 @@ func TestUnix(t *testing.T) {
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:varlinkexternal_TestUnix")
+		servererror <- service.Listen("unix:varlinkexternal_TestUnix", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -131,11 +130,11 @@ func TestListenFDSNotInt(t *testing.T) {
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:varlinkexternal_TestListenFDSNotInt")
+		servererror <- service.Listen("unix:varlinkexternal_TestListenFDSNotInt", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
-	service.Stop()
+	service.Shutdown()
 
 	err = <-servererror
 

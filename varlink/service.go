@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type dispatcher interface {
@@ -44,6 +45,7 @@ type Service struct {
 	descriptions map[string]string
 	running      bool
 	listener     net.Listener
+	conncounter  int64
 	sync.Mutex
 }
 
@@ -117,6 +119,7 @@ func activationListener() net.Listener {
 
 	file := os.NewFile(uintptr(3), "LISTEN_FD_3")
 	listener, err := net.FileListener(file)
+
 	if err != nil {
 		return nil
 	}
@@ -134,7 +137,8 @@ func (s *Service) Shutdown() {
 	s.Unlock()
 }
 
-func (s *Service) handleConnection(conn net.Conn) {
+func (s *Service) handleConnection(conn net.Conn, wg *sync.WaitGroup) {
+	defer func() { s.Lock(); s.conncounter--; s.Unlock(); wg.Done() }()
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
@@ -162,7 +166,7 @@ func (s *Service) teardown() {
 }
 
 // Listen starts a Service.
-func (s *Service) Listen(address string) error {
+func (s *Service) Listen(address string, timeout time.Duration) error {
 	defer func() { s.running = false }()
 	s.running = true
 
@@ -190,11 +194,8 @@ func (s *Service) Listen(address string) error {
 
 	l := activationListener()
 	if l == nil {
-		if protocol == "unix" {
-			if addr[0] != '@' {
-				defer os.Remove(addr)
-				os.Remove(addr)
-			}
+		if protocol == "unix" && addr[0] != '@' {
+			os.Remove(addr)
 		}
 
 		var err error
@@ -202,22 +203,57 @@ func (s *Service) Listen(address string) error {
 		if err != nil {
 			return err
 		}
+
+		if protocol == "unix" && addr[0] != '@' {
+			l.(*net.UnixListener).SetUnlinkOnClose(true)
+		}
 	}
+
+	var wg sync.WaitGroup
+	defer func() { wg.Wait() }()
 
 	s.Lock()
 	s.listener = l
 	s.Unlock()
 
 	for s.running {
+		if timeout != 0 {
+			switch protocol {
+			case "unix":
+				if err := l.(*net.UnixListener).SetDeadline(time.Now().Add(timeout)); err != nil {
+					return err
+				}
+
+			case "tcp":
+				if err := l.(*net.TCPListener).SetDeadline(time.Now().Add(timeout)); err != nil {
+					return err
+				}
+			}
+		}
 		conn, err := l.Accept()
 		if err != nil {
+			if err.(net.Error).Timeout() {
+				var last bool
+				s.Lock()
+				if s.conncounter == 0 {
+					last = true
+				}
+				s.Unlock()
+				if last {
+					return nil
+				}
+				continue
+			}
 			if !s.running {
 				return nil
 			}
 			return err
 		}
-
-		go s.handleConnection(conn)
+		s.Lock()
+		s.conncounter++
+		s.Unlock()
+		wg.Add(1)
+		go s.handleConnection(conn, &wg)
 	}
 
 	return nil
