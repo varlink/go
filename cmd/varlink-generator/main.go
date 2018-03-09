@@ -73,7 +73,11 @@ func writeTypeString(b *bytes.Buffer, t *idl.Type, level int) {
 		}
 		for i, field := range t.Fields {
 			if i > 0 {
-				b.WriteString("; ")
+				if level > 0 {
+					b.WriteString("; ")
+				} else {
+					b.WriteString(", ")
+				}
 			}
 			b.WriteString(sanitizeGoName(field.Name) + " ")
 			writeTypeString(b, field.Type, level)
