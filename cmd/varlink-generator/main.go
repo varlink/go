@@ -126,7 +126,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	pkgname := strings.Replace(midl.Name, ".", "", -1)
 
 	var b bytes.Buffer
-	b.WriteString("// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator\n")
+	b.WriteString("// Generated with varlink-generator -- github.com/varlink/go/cmd/varlink-generator\n")
 	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString(`import "github.com/varlink/go/varlink"` + "\n\n")
 

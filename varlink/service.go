@@ -7,7 +7,7 @@ Example varlink interface definition in a org.example.this.varlink file:
 	method Ping(in: string) -> (out: string)
 
 Generated Go module in a orgexamplethis/orgexamplethis.go file:
-	// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator
+	// Generated with varlink-generator -- github.com/varlink/go/cmd/varlink-generator
 	package orgexamplethis
 
 	import "github.com/varlink/go/varlink"
