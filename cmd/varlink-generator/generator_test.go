@@ -69,6 +69,9 @@ error NotEnoughEnergy ()
 
 # The supplied parameters are outside the supported range
 error ParameterOutOfRange (field: string)
+
+# some more coverage
+method Foo(interface: string) -> (ret: (go: string, switch: bool, more: (t:bool, f:bool))
 	`)
 
 	if err != nil {
