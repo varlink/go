@@ -1,44 +1,100 @@
-// Generated with varlink-generator -- https://github.com/varlink/go/
-
+// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator
 package varlink
 
-type getInfo_Out struct {
-	Vendor     string   `json:"vendor,omitempty"`
-	Product    string   `json:"product,omitempty"`
-	Version    string   `json:"version,omitempty"`
-	Url        string   `json:"url,omitempty"`
-	Interfaces []string `json:"interfaces,omitempty"`
-}
-
-type getInterfaceDescription_Out struct {
-	Description string `json:"description,omitempty"`
-}
-
-type interfaceNotFound_Error struct {
-	Interface string `json:"interface,omitempty"`
-}
-
-type methodNotFound_Error struct {
-	Method string `json:"method,omitempty"`
-}
-
-type methodNotImplemented_Error struct {
-	Method string `json:"method,omitempty"`
-}
-
-type invalidParameter_Error struct {
-	Parameter string `json:"parameter,omitempty"`
-}
-
 type orgvarlinkserviceInterface interface {
-	GetInterfaceDescription(c Call, name string) error
+	GetInterfaceDescription(c Call, interfaceA string) error
 	GetInfo(c Call) error
 }
 
-type orgvarlinkserviceBase struct {
-	orgvarlinkserviceInterface
+func doReplyError(c *Call, name string, parameters interface{}) error {
+	return c.sendMessage(&serviceReply{
+		Error:      name,
+		Parameters: parameters,
+	})
 }
 
+func (c *Call) ReplyInterfaceNotFound(interfaceA string) error {
+	var out struct {
+		Interface string `json:"interface,omitempty"`
+	}
+	out.Interface = interfaceA
+	return doReplyError(c, "org.varlink.service.InterfaceNotFound", &out)
+}
+
+func (c *Call) ReplyMethodNotFound(method string) error {
+	var out struct {
+		Method string `json:"method,omitempty"`
+	}
+	out.Method = method
+	return doReplyError(c, "org.varlink.service.MethodNotFound", &out)
+}
+
+func (c *Call) ReplyMethodNotImplemented(method string) error {
+	var out struct {
+		Method string `json:"method,omitempty"`
+	}
+	out.Method = method
+	return doReplyError(c, "org.varlink.service.MethodNotImplemented", &out)
+}
+
+func (c *Call) ReplyInvalidParameter(parameter string) error {
+	var out struct {
+		Parameter string `json:"parameter,omitempty"`
+	}
+	out.Parameter = parameter
+	return doReplyError(c, "org.varlink.service.InvalidParameter", &out)
+}
+
+func (c *Call) ReplyGetInfo(vendor string, product string, version string, url string, interfaces []string) error {
+	var out struct {
+		Vendor     string   `json:"vendor,omitempty"`
+		Product    string   `json:"product,omitempty"`
+		Version    string   `json:"version,omitempty"`
+		Url        string   `json:"url,omitempty"`
+		Interfaces []string `json:"interfaces,omitempty"`
+	}
+	out.Vendor = vendor
+	out.Product = product
+	out.Version = version
+	out.Url = url
+	out.Interfaces = interfaces
+	return c.Reply(&out)
+}
+
+func (c *Call) ReplyGetInterfaceDescription(description string) error {
+	var out struct {
+		Description string `json:"description,omitempty"`
+	}
+	out.Description = description
+	return c.Reply(&out)
+}
+
+func (s *orgvarlinkserviceBase) GetInfo(c Call) error {
+	return c.ReplyMethodNotImplemented("GetInfo")
+}
+
+func (s *orgvarlinkserviceBase) GetInterfaceDescription(c Call, interfaceA string) error {
+	return c.ReplyMethodNotImplemented("GetInterfaceDescription")
+}
+
+func (s *orgvarlinkserviceBase) VarlinkDispatch(call Call, methodname string) error {
+	switch methodname {
+	case "GetInfo":
+		return s.orgvarlinkserviceInterface.GetInfo(call)
+	case "GetInterfaceDescription":
+		var in struct {
+			Interface string `json:"interface"`
+		}
+		err := call.GetParameters(&in)
+		if err != nil {
+			return call.ReplyInvalidParameter("parameters")
+		}
+		return s.orgvarlinkserviceInterface.GetInterfaceDescription(call, in.Interface)
+
+	default:
+		return call.ReplyMethodNotFound(methodname)
+	}
+}
 func (s *orgvarlinkserviceBase) VarlinkGetName() string {
 	return `org.varlink.service`
 }
@@ -75,26 +131,10 @@ error MethodNotImplemented (method: string)
 error InvalidParameter (parameter: string)`
 }
 
-func (s *orgvarlinkserviceBase) VarlinkDispatch(call Call, methodname string) error {
-	switch methodname {
-	case "GetInterfaceDescription":
-		var in struct {
-			Name string `json:"interface"`
-		}
-		err := call.GetParameters(&in)
-		if err != nil {
-			return call.ReplyInvalidParameter("parameters")
-		}
-
-		return s.orgvarlinkserviceInterface.GetInterfaceDescription(call, in.Name)
-
-	case "GetInfo":
-		return s.orgvarlinkserviceInterface.GetInfo(call)
-
-	default:
-		return call.ReplyMethodNotFound(methodname)
-	}
+type orgvarlinkserviceBase struct {
+	orgvarlinkserviceInterface
 }
-func orgvarlinkserviceNew(i orgvarlinkserviceInterface) *orgvarlinkserviceBase {
-	return &orgvarlinkserviceBase{i}
+
+func orgvarlinkserviceNew(m orgvarlinkserviceInterface) *orgvarlinkserviceBase {
+	return &orgvarlinkserviceBase{m}
 }

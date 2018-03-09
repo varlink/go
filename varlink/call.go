@@ -79,33 +79,8 @@ func (c *Call) ReplyError(name string, parameters interface{}) error {
 	if name[:r] == "org.varlink.service" {
 		return fmt.Errorf("refused to send org.varlink.service errors")
 	}
-
 	return c.sendMessage(&serviceReply{
 		Error:      name,
 		Parameters: parameters,
-	})
-}
-
-// ReplyMethodNotFound sends a org.varlink.service.MethodNotFound error.
-func (c *Call) ReplyMethodNotFound(m string) error {
-	return c.sendMessage(&serviceReply{
-		Error:      "org.varlink.service.MethodNotFound",
-		Parameters: methodNotFound_Error{Method: m},
-	})
-}
-
-// ReplyInvalidParameter sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyInvalidParameter(p string) error {
-	return c.sendMessage(&serviceReply{
-		Error:      "org.varlink.service.InvalidParameter",
-		Parameters: invalidParameter_Error{Parameter: p},
-	})
-}
-
-// ReplyMethodNotFound sends a org.varlink.service.MethodNotImplemented error.
-func (c *Call) ReplyMethodNotImplemented(m string) error {
-	return c.sendMessage(&serviceReply{
-		Error:      "org.varlink.service.MethodNotImplemented",
-		Parameters: methodNotImplemented_Error{Method: m},
 	})
 }

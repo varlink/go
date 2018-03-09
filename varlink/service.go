@@ -46,13 +46,7 @@ type Service struct {
 }
 
 func (s *Service) GetInfo(c Call) error {
-	return c.Reply(&getInfo_Out{
-		Vendor:     s.vendor,
-		Product:    s.product,
-		Version:    s.version,
-		Url:        s.url,
-		Interfaces: s.names,
-	})
+	return c.ReplyGetInfo(s.vendor, s.product, s.version, s.url, s.names)
 }
 
 func (s *Service) GetInterfaceDescription(c Call, name string) error {
@@ -65,14 +59,7 @@ func (s *Service) GetInterfaceDescription(c Call, name string) error {
 		return c.ReplyInvalidParameter("interface")
 	}
 
-	return c.Reply(&getInterfaceDescription_Out{description})
-}
-
-func (s *Service) replyInterfaceNotFound(c Call, i string) error {
-	return c.sendMessage(&serviceReply{
-		Error:      "org.varlink.service.InterfaceNotFound",
-		Parameters: interfaceNotFound_Error{Interface: i},
-	})
+	return c.ReplyGetInterfaceDescription(description)
 }
 
 func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
@@ -100,7 +87,7 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
 	if !ok {
-		return s.replyInterfaceNotFound(c, interfacename)
+		return c.ReplyInterfaceNotFound(interfacename)
 	}
 
 	return iface.VarlinkDispatch(c, methodname)
