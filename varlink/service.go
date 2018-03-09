@@ -2,7 +2,6 @@ package varlink
 
 import (
 	"bufio"
-	"container/list"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -44,7 +43,6 @@ type Service struct {
 	names        []string
 	descriptions map[string]string
 	running      bool
-	connections  *list.List
 	listener     net.Listener
 	sync.RWMutex
 }
@@ -160,26 +158,8 @@ func (s *Service) handleConnection(conn net.Conn) {
 // Tear down all connections
 func (s *Service) teardown() {
 	s.Lock()
-	s.running = false
-	s.Unlock()
-
-	s.RLock()
-	if s.listener != nil {
-		s.listener.Close()
-	}
-	s.RUnlock()
-
-	s.RLock()
-	for e := s.connections.Front(); e != nil; e = e.Next() {
-		e.Value.(net.Conn).Close()
-	}
-	s.RUnlock()
-
-	s.Lock()
-	s.connections = list.New()
 	s.listener = nil
 	s.Unlock()
-
 }
 
 // Run starts a Service.
@@ -238,9 +218,6 @@ func (s *Service) Run(address string) error {
 			return err
 		}
 
-		s.Lock()
-		s.connections.PushBack(conn)
-		s.Unlock()
 		go s.handleConnection(conn)
 	}
 
@@ -273,7 +250,6 @@ func NewService(vendor string, product string, version string, url string) (*Ser
 		url:          url,
 		interfaces:   make(map[string]dispatcher),
 		descriptions: make(map[string]string),
-		connections:  list.New(),
 	}
 	err := s.RegisterInterface(orgvarlinkserviceNew())
 
