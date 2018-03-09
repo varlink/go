@@ -1,4 +1,3 @@
-// Generated with varlink-generator -- https://github.com/varlink/go/cmd/varlink-generator
 package varlink
 
 func doReplyError(c *Call, name string, parameters interface{}) error {
