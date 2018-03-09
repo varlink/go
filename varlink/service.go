@@ -138,6 +138,9 @@ func (s *Service) Stop() {
 
 // Run starts a Service.
 func (s *Service) Run(address string) error {
+	defer func() { s.running = false }()
+	s.running = true
+
 	words := strings.SplitN(address, ":", 2)
 	protocol := words[0]
 	addr := words[1]
@@ -170,11 +173,7 @@ func (s *Service) Run(address string) error {
 		}
 	}
 
-	endrunning := func() { s.running = false }
 	defer l.Close()
-	defer endrunning()
-
-	s.running = true
 
 	handleConnection := func(conn net.Conn) {
 		reader := bufio.NewReader(conn)
