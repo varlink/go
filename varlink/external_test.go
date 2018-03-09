@@ -55,7 +55,11 @@ func TestRegisterService(t *testing.T) {
 
 	defer func() { service.Stop() }()
 
-	go service.Run(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid()))
+	go func() {
+		if err := service.Run(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid())); err != nil {
+			t.Fatalf("service.Run(): %v", err)
+		}
+	}()
 
 	time.Sleep(time.Second / 5)
 
@@ -79,7 +83,11 @@ func TestUnix(t *testing.T) {
 		t.Fatalf("Couldn't register service: %v", err)
 	}
 
-	go service.Run(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid()))
+	go func() {
+		if err := service.Run(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid())); err != nil {
+			t.Fatalf("service.Run(): %v", err)
+		}
+	}()
 
 	time.Sleep(time.Second / 5)
 
