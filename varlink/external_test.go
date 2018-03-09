@@ -53,11 +53,11 @@ func TestRegisterService(t *testing.T) {
 		t.Fatal("Could register service twice")
 	}
 
-	defer func() { time.Sleep(time.Second); service.Stop() }()
+	defer func() { service.Stop() }()
 
 	go service.Run(fmt.Sprintf("unix:@varlinkexternal_TestRegisterService%d", os.Getpid()))
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 5)
 
 	n := new(VarlinkInterface2)
 
@@ -81,10 +81,9 @@ func TestUnix(t *testing.T) {
 
 	go service.Run(fmt.Sprintf("unix:varlinkexternal_TestUnix%d", os.Getpid()))
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 5)
 
 	service.Stop()
-	time.Sleep(time.Second)
 }
 
 /*
