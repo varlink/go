@@ -1,3 +1,22 @@
+/*
+Package varlink provides varlink client and server implementations.
+
+	import ( "orgexample" )
+
+	data := Data{data: "test"}
+
+	service, _ = varlink.NewService(
+	        "Varlink",
+	        "Example",
+	        "1",
+	         "https://example.org",
+	)
+
+	service.RegisterInterface(orgexample.VarlinkNew(&m))
+	err := service.Listen("tcp:0.0.0.0")
+
+See http://varlink.org for more information about varlink.
+*/
 package varlink
 
 import (
