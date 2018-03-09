@@ -16,12 +16,12 @@ type Call struct {
 	Continues bool
 }
 
-// WantsMore indicates if the calling client accepts more than one reply.
+// WantsMore indicates if the calling client accepts more than one reply to this method call.
 func (c *Call) WantsMore() bool {
 	return c.in.More
 }
 
-// IsOneShot indicates if the calling client does not expect a reply.
+// IsOneShot indicate that the calling client does not expect a reply.
 func (c *Call) IsOneShot() bool {
 	return c.in.OneShot
 }
@@ -86,6 +86,7 @@ func (c *Call) ReplyError(name string, parameters interface{}) error {
 	})
 }
 
+// ReplyMethodNotFound sends a org.varlink.service.MethodNotFound error.
 func (c *Call) ReplyMethodNotFound(m string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.MethodNotFound",
@@ -101,6 +102,7 @@ func (c *Call) ReplyInvalidParameter(p string) error {
 	})
 }
 
+// ReplyMethodNotFound sends a org.varlink.service.MethodNotImplemented error.
 func (c *Call) ReplyMethodNotImplemented(m string) error {
 	return c.sendMessage(&serviceReply{
 		Error:      "org.varlink.service.MethodNotImplemented",
