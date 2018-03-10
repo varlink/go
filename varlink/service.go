@@ -104,9 +104,6 @@ func (s *Service) handleMessage(writer *bufio.Writer, request []byte) error {
 }
 
 func activationListener() net.Listener {
-	defer os.Unsetenv("LISTEN_PID")
-	defer os.Unsetenv("LISTEN_FDS")
-
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
 	if err != nil || pid != os.Getpid() {
 		return nil
@@ -121,10 +118,12 @@ func activationListener() net.Listener {
 
 	file := os.NewFile(uintptr(3), "LISTEN_FD_3")
 	listener, err := net.FileListener(file)
-
 	if err != nil {
 		return nil
 	}
+
+	os.Unsetenv("LISTEN_PID")
+	os.Unsetenv("LISTEN_FDS")
 
 	return listener
 }
@@ -190,26 +189,28 @@ func (s *Service) parseAddress(address string) error {
 	default:
 		return fmt.Errorf("Unknown protocol")
 	}
+
 	return nil
 }
 
-func getListener(addr string, protocol string) (net.Listener, error) {
+func getListener(protocol string, address string) (net.Listener, error) {
 	l := activationListener()
 	if l == nil {
-		if protocol == "unix" && addr[0] != '@' {
-			os.Remove(addr)
+		if protocol == "unix" && address[0] != '@' {
+			os.Remove(address)
 		}
 
 		var err error
-		l, err = net.Listen(protocol, addr)
+		l, err = net.Listen(protocol, address)
 		if err != nil {
 			return nil, err
 		}
 
-		if protocol == "unix" && addr[0] != '@' {
+		if protocol == "unix" && address[0] != '@' {
 			l.(*net.UnixListener).SetUnlinkOnClose(true)
 		}
 	}
+
 	return l, nil
 }
 
@@ -225,6 +226,7 @@ func (s *Service) refreshTimeout(timeout time.Duration) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -242,7 +244,7 @@ func (s *Service) Listen(address string, timeout time.Duration) error {
 
 	s.parseAddress(address)
 
-	l, err := getListener(s.address, s.protocol)
+	l, err := getListener(s.protocol, s.address)
 	if err != nil {
 		return err
 	}
