@@ -54,8 +54,13 @@ func (c *Connection) receiveMessage(message *clientReply) error {
 }
 
 // Call sends a method call and returns the result of the call.
-func (c *Connection) call(call *clientCall, parameters, result interface{}) error {
-	err := c.sendMessage(call)
+func (c *Connection) Call(method string, parameters interface{}, result interface{}) error {
+	call := clientCall{
+		Method:     method,
+		Parameters: parameters,
+	}
+
+	err := c.sendMessage(&call)
 	if err != nil {
 		return err
 	}
@@ -74,18 +79,18 @@ func (c *Connection) call(call *clientCall, parameters, result interface{}) erro
 }
 
 // CallMore sends a method call and returns the result of the call. FIXME: support multiple replies
-func (c *Connection) CallMore(method string, parameters, result interface{}) error {
+func (c *Connection) CallMore(method string, parameters interface{}, result interface{}) error {
 	call := clientCall{
 		Method:     method,
 		Parameters: parameters,
 		More:       true,
 	}
 
-	return c.call(&call, parameters, result)
+	return c.sendMessage(&call)
 }
 
 // CallOneShot sends a method call and asks the server to suppress any reply.
-func (c *Connection) CallOneShot(method string, parameters, result interface{}) error {
+func (c *Connection) CallOneShot(method string, parameters interface{}, result interface{}) error {
 	call := clientCall{
 		Method:     method,
 		Parameters: parameters,
