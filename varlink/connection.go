@@ -72,10 +72,14 @@ func (c *Connection) Call(method string, parameters interface{}, result interfac
 	}
 
 	if r.Error != "" {
-		return fmt.Errorf("%s", r.Error)
+		return fmt.Errorf(r.Error)
 	}
 
-	return json.Unmarshal(*r.Parameters, result)
+	if result != nil {
+		return json.Unmarshal(*r.Parameters, result)
+	}
+
+	return nil
 }
 
 // CallMore sends a method call and returns the result of the call. FIXME: support multiple replies
