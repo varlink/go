@@ -7,7 +7,10 @@ Example varlink interface definition in a org.example.this.varlink file:
 
 	method Ping(in: string) -> (out: string)
 
-Generated Go module in a orgexamplethis/orgexamplethis.go file:
+Generated Go module in a orgexamplethis/orgexamplethis.go file. The generated module
+provides reply methods for all methods specified in the varlink interface description.
+The stub implementations return a MethodNotImplemented error; the service implementation
+using this module will override the methods with its own implementation.
 	// Generated with varlink-generator -- github.com/varlink/go/cmd/varlink-generator
 	package orgexamplethis
 
@@ -33,7 +36,7 @@ Generated Go module in a orgexamplethis/orgexamplethis.go file:
 
 	[...]
 
-Example service:
+Service implementing the interface and its method:
 	import ("orgexamplethis")
 
 	type Data struct {
@@ -55,6 +58,6 @@ Example service:
 	)
 
 	service.RegisterInterface(orgexamplethis.VarlinkNew(&data))
-	err := service.Listen("unix:@orgexamplethis", 0)
+	err := service.Listen("unix:/run/org.example.this", 0)
 */
 package varlink
