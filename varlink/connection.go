@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// ResolverAddress is the well-known address of the varlink interface resolver,
+// it translates varlink interface names to varlink service addresses.
+const ResolverAddress = "unix:/run/org.varlink.resolver"
+
 type clientCall struct {
 	Method     string      `json:"method"`
 	Parameters interface{} `json:"parameters,omitempty"`
@@ -15,7 +19,6 @@ type clientCall struct {
 	OneShot    bool        `json:"oneshot,omitempty"`
 }
 
-// clientReply represents the incoming message received by the Client from a Service.
 type clientReply struct {
 	Parameters *json.RawMessage `json:"parameters"`
 	Continues  bool             `json:"continues"`
@@ -80,28 +83,6 @@ func (c *Connection) Call(method string, parameters interface{}, result interfac
 	}
 
 	return nil
-}
-
-// CallMore sends a method call and returns the result of the call. FIXME: support multiple replies
-func (c *Connection) CallMore(method string, parameters interface{}, result interface{}) error {
-	call := clientCall{
-		Method:     method,
-		Parameters: parameters,
-		More:       true,
-	}
-
-	return c.sendMessage(&call)
-}
-
-// CallOneShot sends a method call and asks the server to suppress any reply.
-func (c *Connection) CallOneShot(method string, parameters interface{}, result interface{}) error {
-	call := clientCall{
-		Method:     method,
-		Parameters: parameters,
-		OneShot:    true,
-	}
-
-	return c.sendMessage(&call)
 }
 
 // Close terminates the connection.
