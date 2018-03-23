@@ -74,9 +74,9 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, omit bool, ident int) {
 				b.WriteString("\t")
 			}
 
+			b.WriteString(strings.Title(field.Name) + " ")
+			writeType(b, field.Type, json, omit, ident+1)
 			if json {
-				b.WriteString(strings.Title(field.Name) + " ")
-				writeType(b, field.Type, json, omit, ident+1)
 				b.WriteString(" `json:\"" + field.Name)
 				if omit {
 					switch field.Type.Kind {
@@ -85,9 +85,6 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, omit bool, ident int) {
 					}
 				}
 				b.WriteString("\"`")
-			} else {
-				b.WriteString(sanitizeGoName(field.Name) + " ")
-				writeType(b, field.Type, json, omit, ident+1)
 			}
 			b.WriteString("\n")
 		}
@@ -151,7 +148,15 @@ func generateTemplate(description string) (string, []byte, error) {
 			writeType(&b, e.Type, true, true, 1)
 			b.WriteString("\n")
 			for _, field := range e.Type.Fields {
-				b.WriteString("\tout." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
+				switch field.Type.Kind {
+				case idl.TypeStruct, idl.TypeArray:
+					b.WriteString("\tout." + strings.Title(field.Name) + " = ")
+					writeType(&b, field.Type, true, true, 1)
+					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
+
+				default:
+					b.WriteString("\tout." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
+				}
 			}
 			b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", &out)\n")
 		} else {
@@ -176,7 +181,15 @@ func generateTemplate(description string) (string, []byte, error) {
 			writeType(&b, m.Out, true, true, 1)
 			b.WriteString("\n")
 			for _, field := range m.Out.Fields {
-				b.WriteString("\tout." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
+				switch field.Type.Kind {
+				case idl.TypeStruct, idl.TypeArray:
+					b.WriteString("\tout." + strings.Title(field.Name) + " = ")
+					writeType(&b, field.Type, true, true, 1)
+					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
+
+				default:
+					b.WriteString("\tout." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
+				}
 			}
 			b.WriteString("\treturn c.Reply(&out)\n")
 		} else {
@@ -213,7 +226,15 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call}")
 			if len(m.In.Fields) > 0 {
 				for _, field := range m.In.Fields {
-					b.WriteString(", in." + strings.Title(field.Name))
+					switch field.Type.Kind {
+					case idl.TypeStruct, idl.TypeArray:
+						b.WriteString(", ")
+						writeType(&b, field.Type, false, false, 2)
+						b.WriteString("(in." + strings.Title(field.Name) + ")")
+
+					default:
+						b.WriteString(", in." + strings.Title(field.Name))
+					}
 				}
 			}
 			b.WriteString(")\n")
