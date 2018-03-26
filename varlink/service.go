@@ -110,13 +110,43 @@ func activationListener() net.Listener {
 	}
 
 	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
-	if err != nil || nfds != 1 {
+	if err != nil || nfds < 1 {
 		return nil
 	}
 
-	syscall.CloseOnExec(3)
+	fd := -1
 
-	file := os.NewFile(uintptr(3), "LISTEN_FD_3")
+	// If more than one file descriptor is passed, find the
+	// "varlink" tag. The first file descriptor is always 3.
+	if nfds > 1 {
+		fdnames, set := os.LookupEnv("LISTEN_FDNAMES")
+		if !set {
+			return nil
+		}
+
+		names := strings.Split(fdnames, ":")
+		if len(names) != nfds {
+			return nil
+		}
+
+		for i, name := range names {
+			if name == "varlink" {
+				fd = 3 + i
+				break
+			}
+		}
+
+		if fd < 0 {
+			return nil
+		}
+
+	} else {
+		fd = 3
+	}
+
+	syscall.CloseOnExec(fd)
+
+	file := os.NewFile(uintptr(fd), "varlink")
 	listener, err := net.FileListener(file)
 	if err != nil {
 		return nil
