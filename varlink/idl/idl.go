@@ -14,6 +14,7 @@ const (
 	TypeFloat
 	TypeString
 	TypeArray
+	TypeMaybe
 	TypeStruct
 	TypeEnum
 	TypeAlias
@@ -186,7 +187,7 @@ func (p *parser) readFieldName() string {
 
 	for {
 		char := p.next()
-		if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '_' {
+		if (char < 'A' || char > 'Z') && (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '_' {
 			p.backup()
 			break
 		}
@@ -270,36 +271,47 @@ func (p *parser) readStructType() *Type {
 func (p *parser) readType() *Type {
 	var t *Type
 
-	if keyword := p.readKeyword(); keyword != "" {
-		switch keyword {
-		case "bool":
-			t = &Type{Kind: TypeBool}
-
-		case "int":
-			t = &Type{Kind: TypeInt}
-
-		case "float":
-			t = &Type{Kind: TypeFloat}
-
-		case "string":
-			t = &Type{Kind: TypeString}
+	switch p.next() {
+	case '?':
+		e := p.readType()
+		if e == nil {
+			return nil
 		}
+		t = &Type{Kind: TypeMaybe, ElementType: e}
 
-	} else if name := p.readTypeName(); name != "" {
-		t = &Type{Kind: TypeAlias, Alias: name}
-
-	} else if t = p.readStructType(); t == nil {
-		return nil
-	}
-
-	if p.next() == '[' {
+	case '[':
 		if p.next() != ']' {
 			return nil
 		}
-		t = &Type{Kind: TypeArray, ElementType: t}
+		e := p.readType()
+		if e == nil {
+			return nil
+		}
+		t = &Type{Kind: TypeArray, ElementType: e}
 
-	} else {
+	default:
 		p.backup()
+		if keyword := p.readKeyword(); keyword != "" {
+			switch keyword {
+			case "bool":
+				t = &Type{Kind: TypeBool}
+
+			case "int":
+				t = &Type{Kind: TypeInt}
+
+			case "float":
+				t = &Type{Kind: TypeFloat}
+
+			case "string":
+				t = &Type{Kind: TypeString}
+			}
+
+		} else if name := p.readTypeName(); name != "" {
+			t = &Type{Kind: TypeAlias, Alias: name}
+
+		} else if t = p.readStructType(); t == nil {
+			return nil
+		}
 	}
 
 	return t

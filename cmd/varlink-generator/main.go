@@ -46,7 +46,7 @@ func sanitizeGoName(name string) string {
 	return name + "_"
 }
 
-func writeType(b *bytes.Buffer, t *idl.Type, json bool, omit bool, ident int) {
+func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 	switch t.Kind {
 	case idl.TypeBool:
 		b.WriteString("bool")
@@ -62,7 +62,11 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, omit bool, ident int) {
 
 	case idl.TypeArray:
 		b.WriteString("[]")
-		writeType(b, t.ElementType, json, omit, ident)
+		writeType(b, t.ElementType, json, ident)
+
+	case idl.TypeMaybe:
+		b.WriteString("*")
+		writeType(b, t.ElementType, json, ident)
 
 	case idl.TypeAlias:
 		b.WriteString(t.Alias)
@@ -75,16 +79,9 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, omit bool, ident int) {
 			}
 
 			b.WriteString(strings.Title(field.Name) + " ")
-			writeType(b, field.Type, json, omit, ident+1)
+			writeType(b, field.Type, json, ident+1)
 			if json {
-				b.WriteString(" `json:\"" + field.Name)
-				if omit {
-					switch field.Type.Kind {
-					case idl.TypeStruct, idl.TypeString, idl.TypeEnum, idl.TypeArray, idl.TypeAlias:
-						b.WriteString(",omitempty")
-					}
-				}
-				b.WriteString("\"`")
+				b.WriteString(" `json:\"" + field.Name + "\"`")
 			}
 			b.WriteString("\n")
 		}
@@ -113,7 +110,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	// Type declarations
 	for _, a := range midl.Aliases {
 		b.WriteString("type " + a.Name + " ")
-		writeType(&b, a.Type, true, true, 0)
+		writeType(&b, a.Type, true, 0)
 		b.WriteString("\n\n")
 	}
 
@@ -123,7 +120,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("\t" + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + strings.Title(field.Name) + " ")
-			writeType(&b, field.Type, false, false, 1)
+			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error\n")
 	}
@@ -140,18 +137,18 @@ func generateTemplate(description string) (string, []byte, error) {
 				b.WriteString(", ")
 			}
 			b.WriteString(sanitizeGoName(field.Name) + " ")
-			writeType(&b, field.Type, false, false, 1)
+			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n")
 		if len(e.Type.Fields) > 0 {
 			b.WriteString("\tvar out ")
-			writeType(&b, e.Type, true, true, 1)
+			writeType(&b, e.Type, true, 1)
 			b.WriteString("\n")
 			for _, field := range e.Type.Fields {
 				switch field.Type.Kind {
 				case idl.TypeStruct, idl.TypeArray:
 					b.WriteString("\tout." + strings.Title(field.Name) + " = ")
-					writeType(&b, field.Type, true, true, 1)
+					writeType(&b, field.Type, true, 1)
 					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
 
 				default:
@@ -173,18 +170,18 @@ func generateTemplate(description string) (string, []byte, error) {
 				b.WriteString(", ")
 			}
 			b.WriteString(sanitizeGoName(field.Name) + " ")
-			writeType(&b, field.Type, false, false, 1)
+			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n")
 		if len(m.Out.Fields) > 0 {
 			b.WriteString("\tvar out ")
-			writeType(&b, m.Out, true, true, 1)
+			writeType(&b, m.Out, true, 1)
 			b.WriteString("\n")
 			for _, field := range m.Out.Fields {
 				switch field.Type.Kind {
 				case idl.TypeStruct, idl.TypeArray:
 					b.WriteString("\tout." + strings.Title(field.Name) + " = ")
-					writeType(&b, field.Type, true, true, 1)
+					writeType(&b, field.Type, true, 1)
 					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
 
 				default:
@@ -203,7 +200,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + sanitizeGoName(field.Name) + " ")
-			writeType(&b, field.Type, false, false, 1)
+			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n" +
 			"\treturn c.ReplyMethodNotImplemented(\"" + m.Name + "\")\n" +
@@ -217,7 +214,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("\tcase \"" + m.Name + "\":\n")
 		if len(m.In.Fields) > 0 {
 			b.WriteString("\t\tvar in ")
-			writeType(&b, m.In, true, false, 2)
+			writeType(&b, m.In, true, 2)
 			b.WriteString("\n")
 			b.WriteString("\t\terr := call.GetParameters(&in)\n" +
 				"\t\tif err != nil {\n" +
@@ -229,7 +226,7 @@ func generateTemplate(description string) (string, []byte, error) {
 					switch field.Type.Kind {
 					case idl.TypeStruct, idl.TypeArray:
 						b.WriteString(", ")
-						writeType(&b, field.Type, false, false, 2)
+						writeType(&b, field.Type, false, 2)
 						b.WriteString("(in." + strings.Title(field.Name) + ")")
 
 					default:

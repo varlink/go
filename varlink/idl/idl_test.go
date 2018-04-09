@@ -65,7 +65,7 @@ func TestDomainNames(t *testing.T) {
 func TestNoMethod(t *testing.T) {
 	testParse(t, false, `
 interface org.varlink.service
-  type Interface (name: string, types: Type[], methods: Method[])
+  type Interface (name: string, types: []Type, methods: []Method)
   type Property (key: string, value: string)
 `)
 }
@@ -79,7 +79,7 @@ func TestTypeOneArg(t *testing.T) {
 }
 
 func TestTypeOneArray(t *testing.T) {
-	testParse(t, true, "interface foo.bar\n type I (b:bool[])\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I (b:[]bool)\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (b:bool[ ])\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (b:bool[1])\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (b:bool[ 1 ])\nmethod  F()->()")
@@ -87,12 +87,12 @@ func TestTypeOneArray(t *testing.T) {
 }
 
 func TestFieldnames(t *testing.T) {
-	testParse(t, false, "interface foo.bar\n type I (Test:bool[])\nmethod  F()->()")
-	testParse(t, false, "interface foo.bar\n type I (_test:bool[])\nmethod  F()->()")
-	testParse(t, false, "interface foo.bar\n type I (Äest:bool[])\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (Test:[]bool)\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (_test:[]bool)\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (Äest:[]bool)\nmethod  F()->()")
 }
 func TestNestedStructs(t *testing.T) {
-	testParse(t, true, "interface foo.bar\n type I ( b: (foo: bool, bar: bool, baz: int)[] )\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I ( b: [](foo: bool, bar: bool, baz: int) )\nmethod  F()->()")
 }
 
 func TestEnum(t *testing.T) {
