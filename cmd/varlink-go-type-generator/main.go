@@ -27,22 +27,29 @@ func GoToVarlinkType(t types.Type) string {
 			return "string"
 		}
 		return fmt.Sprintf("<<<%s>>>", t.String())
-		break
+
 	case *types.Named:
 		return u.Obj().Name()
+
 	case *types.Map:
 		return fmt.Sprintf("<<<%s>>>", u.String())
+
 	case *types.Interface:
 		return fmt.Sprintf("<<<%s>>>", u.String())
+
 	case *types.Pointer:
 		return fmt.Sprintf("?%s", GoToVarlinkType(u.Elem()))
+
 	case *types.Array:
 		return fmt.Sprintf("[]%s", GoToVarlinkType(u.Elem()))
+
 	case *types.Slice:
 		return fmt.Sprintf("[]%s", GoToVarlinkType(u.Elem()))
+
 	default:
 		return fmt.Sprintf("<<<%T %s>>>", t, u)
 	}
+
 	return t.String()
 }
 
@@ -57,7 +64,6 @@ func PrintDefsUses(name string, fset *token.FileSet, files []*ast.File) error {
 	}
 
 	_, err := conf.Check(name, fset, files, info)
-
 	if err != nil {
 		return err // type error
 	}
@@ -93,13 +99,13 @@ func PrintDefsUses(name string, fset *token.FileSet, files []*ast.File) error {
 		}
 		seen[id.Name] = nil
 	}
+
 	return nil
 }
 
 func main() {
 
 	path := os.Args[1]
-
 	fs := token.NewFileSet()
 
 	if stat, err := os.Stat(path); err == nil && stat.IsDir() {

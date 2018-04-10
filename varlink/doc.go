@@ -11,7 +11,7 @@ Generated Go module in a orgexamplethis/orgexamplethis.go file. The generated mo
 provides reply methods for all methods specified in the varlink interface description.
 The stub implementations return a MethodNotImplemented error; the service implementation
 using this module will override the methods with its own implementation.
-	// Generated with varlink-generator -- github.com/varlink/go/cmd/varlink-generator
+	// Generated with github.com/varlink/go/cmd/varlink-go-interface-generator
 	package orgexamplethis
 
 	import "github.com/varlink/go/varlink"
