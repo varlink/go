@@ -32,7 +32,14 @@ func GoToVarlinkType(t types.Type) string {
 		return u.Obj().Name()
 
 	case *types.Map:
-		return fmt.Sprintf("[string]%s", GoToVarlinkType(u.Elem()))
+		switch k := u.Key().(type) {
+		case *types.Basic:
+			if k.Info()&types.IsString != 0 {
+				return fmt.Sprintf("[string]%s", GoToVarlinkType(u.Elem()))
+			}
+		default:
+			return fmt.Sprintf("<<<%s>>>", u.String())
+		}
 
 	case *types.Interface:
 		return fmt.Sprintf("<<<%s>>>", u.String())
