@@ -15,6 +15,7 @@ const (
 	TypeString
 	TypeArray
 	TypeMaybe
+	TypeMap
 	TypeStruct
 	TypeEnum
 	TypeAlias
@@ -280,6 +281,19 @@ func (p *parser) readType() *Type {
 		t = &Type{Kind: TypeMaybe, ElementType: e}
 
 	case '[':
+		var kind TypeKind
+
+		switch p.readKeyword() {
+		case "string":
+			kind = TypeMap
+
+		case "":
+			kind = TypeArray
+
+		default:
+			return nil
+		}
+
 		if p.next() != ']' {
 			return nil
 		}
@@ -287,7 +301,7 @@ func (p *parser) readType() *Type {
 		if e == nil {
 			return nil
 		}
-		t = &Type{Kind: TypeArray, ElementType: e}
+		t = &Type{Kind: kind, ElementType: e}
 
 	default:
 		p.backup()

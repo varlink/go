@@ -64,6 +64,10 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 		b.WriteString("[]")
 		writeType(b, t.ElementType, json, ident)
 
+	case idl.TypeMap:
+		b.WriteString("map[string]")
+		writeType(b, t.ElementType, json, ident)
+
 	case idl.TypeMaybe:
 		b.WriteString("*")
 		writeType(b, t.ElementType, json, ident)
@@ -146,7 +150,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\n")
 			for _, field := range e.Type.Fields {
 				switch field.Type.Kind {
-				case idl.TypeStruct, idl.TypeArray:
+				case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
 					b.WriteString("\tout." + strings.Title(field.Name) + " = ")
 					writeType(&b, field.Type, true, 1)
 					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
@@ -179,7 +183,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\n")
 			for _, field := range m.Out.Fields {
 				switch field.Type.Kind {
-				case idl.TypeStruct, idl.TypeArray:
+				case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
 					b.WriteString("\tout." + strings.Title(field.Name) + " = ")
 					writeType(&b, field.Type, true, 1)
 					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
@@ -224,7 +228,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			if len(m.In.Fields) > 0 {
 				for _, field := range m.In.Fields {
 					switch field.Type.Kind {
-					case idl.TypeStruct, idl.TypeArray:
+					case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
 						b.WriteString(", ")
 						writeType(&b, field.Type, false, 2)
 						b.WriteString("(in." + strings.Title(field.Name) + ")")

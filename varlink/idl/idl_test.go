@@ -100,6 +100,12 @@ func TestEnum(t *testing.T) {
 	testParse(t, false, "interface foo.bar\n type I (foo, bar, baz : bool)\nmethod  F()->()")
 }
 
+func TestMap(t *testing.T) {
+	testParse(t, true, "interface foo.bar\n type I (m: [string]string)\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I (m: [string]int)\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (m: [int]string)\nmethod  F()->()")
+}
+
 func TestIncomplete(t *testing.T) {
 	testParse(t, false, "interfacef foo.bar\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\nmethod  F()->()\ntype I (b: bool")
