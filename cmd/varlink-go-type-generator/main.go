@@ -37,6 +37,7 @@ func GoToVarlinkType(t types.Type) string {
 			if k.Info()&types.IsString != 0 {
 				return fmt.Sprintf("[string]%s", GoToVarlinkType(u.Elem()))
 			}
+			return fmt.Sprintf("<<<%s>>>", u.String())
 		default:
 			return fmt.Sprintf("<<<%s>>>", u.String())
 		}
