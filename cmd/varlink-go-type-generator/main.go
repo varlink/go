@@ -11,38 +11,54 @@ import (
 	"os"
 )
 
-func GoToVarlinkType(t types.Type) string {
+func IsBasicGoType(t types.Type, flag types.BasicInfo) bool {
 	switch u := t.(type) {
 	case *types.Basic:
-		if u.Info()&types.IsBoolean != 0 {
-			return "bool"
+		if u.Info()&flag != 0 {
+			return true
 		}
-		if u.Info()&types.IsInteger != 0 {
-			return "int"
-		}
-		if u.Info()&types.IsFloat != 0 {
-			return "float"
-		}
-		if u.Info()&types.IsString != 0 {
-			return "string"
-		}
+		return false
+	case *types.Named:
+		return IsBasicGoType(u.Underlying(), flag)
+	}
+	return false
+}
+
+func GoToVarlinkType(t types.Type) string {
+	if IsBasicGoType(t, types.IsBoolean) {
+		return "bool"
+	}
+
+	if IsBasicGoType(t, types.IsInteger) {
+		return "int"
+	}
+
+	if IsBasicGoType(t, types.IsFloat) {
+		return "float"
+	}
+
+	if IsBasicGoType(t, types.IsString) {
+		return "string"
+	}
+
+	switch u := t.(type) {
+	case *types.Basic:
 		return fmt.Sprintf("<<<%s>>>", t.String())
 
 	case *types.Named:
 		return u.Obj().Name()
 
 	case *types.Map:
-		switch k := u.Key().(type) {
-		case *types.Basic:
-			if k.Info()&types.IsString != 0 {
-				return fmt.Sprintf("[string]%s", GoToVarlinkType(u.Elem()))
-			}
-			return fmt.Sprintf("<<<%s>>>", u.String())
-		default:
+		if IsBasicGoType(u.Key(), types.IsString) {
+			return fmt.Sprintf("[string]%s", GoToVarlinkType(u.Elem()))
+		} else {
 			return fmt.Sprintf("<<<%s>>>", u.String())
 		}
 
 	case *types.Interface:
+		if u.Empty() {
+			return "()"
+		}
 		return fmt.Sprintf("<<<%s>>>", u.String())
 
 	case *types.Pointer:
@@ -53,6 +69,21 @@ func GoToVarlinkType(t types.Type) string {
 
 	case *types.Slice:
 		return fmt.Sprintf("[]%s", GoToVarlinkType(u.Elem()))
+
+	case *types.Struct:
+		if u.NumFields() > 0 {
+			s := ""
+			for i := 0; i < u.NumFields(); i++ {
+				if i > 0 {
+					s += ",\n"
+				}
+				s += fmt.Sprintf("\t%s: %s",
+					u.Field(i).Name(), GoToVarlinkType(u.Field(i).Type()))
+			}
+
+			return fmt.Sprintf("(\n%s\n)", s)
+		}
+		return "()"
 
 	default:
 		return fmt.Sprintf("<<<%T %s>>>", t, u)
@@ -95,14 +126,7 @@ func PrintDefsUses(name string, fset *token.FileSet, files []*ast.File) error {
 		switch f := obj.Type().Underlying().(type) {
 		case *types.Struct:
 			if f.NumFields() > 0 {
-				fmt.Printf("type %s (\n", id.Name)
-				fmt.Printf("\t%s: %s",
-					f.Field(0).Name(), GoToVarlinkType(f.Field(0).Type()))
-				for i := 1; i < f.NumFields(); i++ {
-					fmt.Printf(",\n\t%s: %s",
-						f.Field(i).Name(), GoToVarlinkType(f.Field(i).Type()))
-				}
-				fmt.Printf("\n)\n\n")
+				fmt.Printf("type %s %s\n\n", id.Name, GoToVarlinkType(f))
 			}
 		}
 		seen[id.Name] = nil
