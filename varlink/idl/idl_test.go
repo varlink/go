@@ -78,6 +78,14 @@ func TestTypeOneArg(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I (b:bool)\nmethod F()->()")
 }
 
+func TestBasicTypes(t *testing.T) {
+	testParse(t, true, "interface foo.bar\n type I (b:bool)\nmethod F()->()")
+	testParse(t, true, "interface foo.bar\n type I (b:string)\nmethod F()->()")
+	testParse(t, true, "interface foo.bar\n type I (b:float)\nmethod F()->()")
+	testParse(t, true, "interface foo.bar\n type I (b:int)\nmethod F()->()")
+	testParse(t, true, "interface foo.bar\n type I (b:object)\nmethod F()->()")
+}
+
 func TestTypeOneArray(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I (b:[]bool)\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (b:bool[ ])\nmethod  F()->()")
@@ -103,6 +111,7 @@ func TestEnum(t *testing.T) {
 func TestMap(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I (m: [string]string)\nmethod  F()->()")
 	testParse(t, true, "interface foo.bar\n type I (m: [string]int)\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I (m: [string]())\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (m: [int]string)\nmethod  F()->()")
 }
 
