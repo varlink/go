@@ -60,6 +60,9 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 	case idl.TypeString, idl.TypeEnum:
 		b.WriteString("string")
 
+	case idl.TypeObject:
+		b.WriteString("json.RawMessage")
+
 	case idl.TypeArray:
 		b.WriteString("[]")
 		writeType(b, t.ElementType, json, ident)
@@ -76,23 +79,27 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 		b.WriteString(t.Alias)
 
 	case idl.TypeStruct:
-		b.WriteString("struct{\n")
-		for _, field := range t.Fields {
-			for i := 0; i < ident+1; i++ {
+		if len(t.Fields) == 0 {
+			b.WriteString("struct{}")
+		} else {
+			b.WriteString("struct{\n")
+			for _, field := range t.Fields {
+				for i := 0; i < ident+1; i++ {
+					b.WriteString("\t")
+				}
+
+				b.WriteString(strings.Title(field.Name) + " ")
+				writeType(b, field.Type, json, ident+1)
+				if json {
+					b.WriteString(" `json:\"" + field.Name + "\"`")
+				}
+				b.WriteString("\n")
+			}
+			for i := 0; i < ident; i++ {
 				b.WriteString("\t")
 			}
-
-			b.WriteString(strings.Title(field.Name) + " ")
-			writeType(b, field.Type, json, ident+1)
-			if json {
-				b.WriteString(" `json:\"" + field.Name + "\"`")
-			}
-			b.WriteString("\n")
+			b.WriteString("}")
 		}
-		for i := 0; i < ident; i++ {
-			b.WriteString("\t")
-		}
-		b.WriteString("}")
 	}
 }
 
@@ -109,7 +116,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	var b bytes.Buffer
 	b.WriteString("// Generated with github.com/varlink/go/cmd/varlink-go-interface-generator\n")
 	b.WriteString("package " + pkgname + "\n\n")
-	b.WriteString(`import "github.com/varlink/go/varlink"` + "\n\n")
+	b.WriteString("@IMPORTS@\n\n")
 
 	// Type declarations
 	for _, a := range midl.Aliases {
@@ -123,7 +130,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	for _, m := range midl.Methods {
 		b.WriteString("\t" + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
-			b.WriteString(", " + strings.Title(field.Name) + " ")
+			b.WriteString(", " + sanitizeGoName(field.Name) + " ")
 			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error\n")
@@ -265,7 +272,15 @@ func generateTemplate(description string) (string, []byte, error) {
 		"\treturn &VarlinkInterface{m}\n" +
 		"}\n")
 
-	return pkgname, b.Bytes(), nil
+	ret_string := b.String()
+
+	if strings.Contains(ret_string, "json.RawMessage") {
+		ret_string = strings.Replace(ret_string, "@IMPORTS@", "import (\n\t\"github.com/varlink/go/varlink\"\n\t\"encoding/json\"\n)", 1)
+	} else {
+		ret_string = strings.Replace(ret_string, "@IMPORTS@", `import "github.com/varlink/go/varlink"`, 1)
+	}
+
+	return pkgname, []byte(ret_string), nil
 }
 
 func generateFile(varlinkFile string) {

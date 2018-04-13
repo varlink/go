@@ -72,6 +72,11 @@ error ParameterOutOfRange (field: string)
 
 # some more coverage
 method Foo(interface: string) -> (ret: (go: string, switch: bool, more: (t:bool, f:bool)))
+
+# some more coverage
+method TestMap(map: [string]string) -> (map: [string](i: int, val: string))
+method TestSet(set: [string]()) -> (set: [string]())
+method TestObject(object: object) -> (object: object)
 	`)
 
 	if err != nil {
