@@ -99,6 +99,7 @@ func TestFieldnames(t *testing.T) {
 	testParse(t, false, "interface foo.bar\n type I (_test:[]bool)\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (Äest:[]bool)\nmethod  F()->()")
 }
+
 func TestNestedStructs(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I ( b: [](foo: bool, bar: bool, baz: int) )\nmethod  F()->()")
 }
@@ -113,6 +114,13 @@ func TestMap(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I (m: [string]int)\nmethod  F()->()")
 	testParse(t, true, "interface foo.bar\n type I (m: [string]())\nmethod  F()->()")
 	testParse(t, false, "interface foo.bar\n type I (m: [int]string)\nmethod  F()->()")
+}
+
+func TestMaybe(t *testing.T) {
+	testParse(t, true, "interface foo.bar\n type I (m: ?string)\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I (m: ?[string]?int)\nmethod  F()->()")
+	testParse(t, true, "interface foo.bar\n type I (m: ?[]?int)\nmethod  F()->()")
+	testParse(t, false, "interface foo.bar\n type I (m: ??int)\nmethod  F()->()")
 }
 
 func TestIncomplete(t *testing.T) {

@@ -279,6 +279,9 @@ func (p *parser) readType() *Type {
 		if e == nil {
 			return nil
 		}
+		if e.Kind == TypeMaybe {
+			return nil
+		}
 		t = &Type{Kind: TypeMaybe, ElementType: e}
 
 	case '[':
