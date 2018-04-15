@@ -91,9 +91,12 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 				b.WriteString(strings.Title(field.Name) + " ")
 				writeType(b, field.Type, json, ident+1)
 				if json {
-					b.WriteString(" `json:\"" + field.Name + "\"`")
+					b.WriteString(" `json:\"" + field.Name)
+					if field.Type.Kind == idl.TypeMaybe {
+						b.WriteString(",omitempty")
+					}
 				}
-				b.WriteString("\n")
+				b.WriteString("\"`\n")
 			}
 			for i := 0; i < ident; i++ {
 				b.WriteString("\t")
