@@ -126,6 +126,7 @@ func TestListenFDSNotInt(t *testing.T) {
 		t.Fatalf("Couldn't register service: %v", err)
 	}
 	os.Setenv("LISTEN_FDS", "foo")
+	os.Setenv("LISTEN_PID", string(os.Getpid()))
 
 	servererror := make(chan error)
 
