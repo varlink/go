@@ -5,6 +5,7 @@ package varlink_test
 import (
 	"github.com/varlink/go/varlink"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -99,6 +100,41 @@ func TestUnix(t *testing.T) {
 
 	go func() {
 		servererror <- service.Listen("unix:varlinkexternal_TestUnix", 0)
+	}()
+
+	time.Sleep(time.Second / 5)
+	service.Shutdown()
+
+	if err := <-servererror; err != nil {
+		t.Fatalf("service.Listen(): %v", err)
+	}
+}
+
+func TestAnonUnix(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		return
+	}
+
+	newTestInterface := new(VarlinkInterface)
+	service, err := varlink.NewService(
+		"Varlink",
+		"Varlink Test",
+		"1",
+		"https://github.com/varlink/go/varlink",
+	)
+
+	if err != nil {
+		t.Fatalf("NewService(): %v", err)
+	}
+
+	if err := service.RegisterInterface(newTestInterface); err != nil {
+		t.Fatalf("RegisterInterface(): %v", err)
+	}
+
+	servererror := make(chan error)
+
+	go func() {
+		servererror <- service.Listen("unix:@varlinkexternal_TestAnonUnix", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
