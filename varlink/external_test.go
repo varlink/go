@@ -60,7 +60,7 @@ func TestRegisterService(t *testing.T) {
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:@varlinkexternal_TestRegisterService", 0)
+		servererror <- service.Listen("unix:varlinkexternal_TestRegisterService", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
