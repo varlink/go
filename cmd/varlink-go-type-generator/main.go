@@ -88,8 +88,6 @@ func GoToVarlinkType(t types.Type) string {
 	default:
 		return fmt.Sprintf("<<<%T %s>>>", t, u)
 	}
-
-	return t.String()
 }
 
 func PrintDefsUses(name string, fset *token.FileSet, files []*ast.File) error {
