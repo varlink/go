@@ -63,7 +63,7 @@ func (c *Connection) Send(method string, parameters interface{}, more bool, onew
 }
 
 // Receive receives a method reply.
-func (c *Connection) Receive(parameters interface{}, continues *bool) error {
+func (c *Connection) Receive(parameters interface{}) (bool, error) {
 	type reply struct {
 		Parameters *json.RawMessage `json:"parameters"`
 		Continues  bool             `json:"continues"`
@@ -72,30 +72,27 @@ func (c *Connection) Receive(parameters interface{}, continues *bool) error {
 
 	out, err := c.reader.ReadBytes('\x00')
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	var m reply
 	err = json.Unmarshal(out[:len(out)-1], &m)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if m.Error != "" {
-		return &Error{
+		return false, &Error{
 			Name:       m.Error,
 			Parameters: m.Parameters,
 		}
 	}
 
-	if continues != nil {
-		*continues = m.Continues
-	}
 	if parameters != nil && m.Parameters != nil {
-		return json.Unmarshal(*m.Parameters, parameters)
+		return m.Continues, json.Unmarshal(*m.Parameters, parameters)
 	}
 
-	return nil
+	return m.Continues, nil
 }
 
 // Call sends a method call and returns the result of the call.
@@ -105,7 +102,8 @@ func (c *Connection) Call(method string, parameters interface{}, result interfac
 		return err
 	}
 
-	return c.Receive(result, nil)
+	_, err = c.Receive(result)
+	return err
 }
 
 // GetInterfaceDescription requests the interface description string from the service.

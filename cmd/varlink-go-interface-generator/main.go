@@ -132,7 +132,7 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	b.WriteString("// Client method calls and reply readers\n")
 	for _, m := range midl.Methods {
-		b.WriteString("func " + m.Name + "(c *varlink.Connection")
+		b.WriteString("func " + m.Name + "(c_ *varlink.Connection, more_ bool, oneway_ bool")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + sanitizeGoName(field.Name) + " ")
 			writeType(&b, field.Type, false, 1)
@@ -153,29 +153,29 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tin." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
 				}
 			}
-			b.WriteString("\treturn c.Send(\"" + midl.Name + "." + m.Name + "\", in, false, false)\n" +
+			b.WriteString("\treturn c_.Send(\"" + midl.Name + "." + m.Name + "\", in, more_, oneway_)\n" +
 				"}\n\n")
 		} else {
-			b.WriteString("\treturn c.Send(\"" + midl.Name + "." + m.Name + "\", nil, false, false)\n" +
+			b.WriteString("\treturn c_.Send(\"" + midl.Name + "." + m.Name + "\", nil, more_, oneway_)\n" +
 				"}\n\n")
 		}
 
-		b.WriteString("func Read" + m.Name + "(c *varlink.Connection")
+		b.WriteString("func Read" + m.Name + "_(c *varlink.Connection")
 		for _, field := range m.Out.Fields {
 			b.WriteString(", " + sanitizeGoName(field.Name) + " *")
 			writeType(&b, field.Type, false, 1)
 		}
-		b.WriteString(") error {\n")
+		b.WriteString(") (bool, error) {\n")
 		if len(m.Out.Fields) > 0 {
 			b.WriteString("\tvar out ")
 			writeType(&b, m.Out, true, 1)
 			b.WriteString("\n")
-			b.WriteString("\terr := c.Receive(&out, nil)\n");
+			b.WriteString("\tcontinues_, err := c.Receive(&out)\n");
 		} else {
-			b.WriteString("\terr := c.Receive(nil, nil)\n");
+			b.WriteString("\tcontinues_, err := c.Receive(nil)\n");
 		}
 		b.WriteString("\tif err != nil {\n" +
-			"\t\treturn err\n" +
+			"\t\treturn false, err\n" +
 			"\t}\n")
 		for _, field := range m.Out.Fields {
 			b.WriteString("\tif " + sanitizeGoName(field.Name) + " != nil {\n")
@@ -191,7 +191,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\t}\n")
 		}
 
-		b.WriteString("\treturn nil\n" +
+		b.WriteString("\treturn continues_, nil\n" +
 			"}\n\n")
 	}
 
