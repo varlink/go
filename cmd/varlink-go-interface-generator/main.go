@@ -38,6 +38,24 @@ var goKeywords = map[string]struct{}{
 	"switch":      {},
 	"type":        {},
 	"var":         {},
+	"bool":        {},
+	"int":         {},
+	"int8":        {},
+	"int16":       {},
+	"int32":       {},
+	"int64":       {},
+	"uint":        {},
+	"uint8":       {},
+	"uint16":      {},
+	"uint32":      {},
+	"uint64":      {},
+	"uintptr":     {},
+	"float32":     {},
+	"float64":     {},
+	"complex64":   {},
+	"complex128":  {},
+	"string":      {},
+	"Pointer":     {},
 }
 
 func sanitizeGoName(name string) string {
@@ -170,9 +188,9 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\tvar out ")
 			writeType(&b, m.Out, true, 1)
 			b.WriteString("\n")
-			b.WriteString("\tcontinues_, err := c.Receive(&out)\n");
+			b.WriteString("\tcontinues_, err := c.Receive(&out)\n")
 		} else {
-			b.WriteString("\tcontinues_, err := c.Receive(nil)\n");
+			b.WriteString("\tcontinues_, err := c.Receive(nil)\n")
 		}
 		b.WriteString("\tif err != nil {\n" +
 			"\t\treturn false, err\n" +
