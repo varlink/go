@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	//"go/format"
+	"go/format"
 	"io/ioutil"
 	"os"
 	"path"
@@ -96,8 +96,9 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 					if field.Type.Kind == idl.TypeMaybe {
 						b.WriteString(",omitempty")
 					}
+					b.WriteString("\"`")
 				}
-				b.WriteString("\"`\n")
+				b.WriteString("\n")
 			}
 			for i := 0; i < ident; i++ {
 				b.WriteString("\t")
@@ -180,9 +181,9 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\tif " + sanitizeGoName(field.Name) + " != nil {\n")
 			switch field.Type.Kind {
 			case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
-				b.WriteString("\t\t" + sanitizeGoName(field.Name) + "= (")
-				writeType(&b, field.Type, true, 1)
-				b.WriteString(") out." + strings.Title(field.Name) + "\n")
+				b.WriteString("\t\t*" + sanitizeGoName(field.Name) + " = ")
+				writeType(&b, field.Type, false, 2)
+				b.WriteString(" (out." + strings.Title(field.Name) + ")\n")
 
 			default:
 				b.WriteString("\t\t*" + sanitizeGoName(field.Name) + " = out." + strings.Title(field.Name) + "\n")
@@ -350,11 +351,10 @@ func generateTemplate(description string) (string, []byte, error) {
 		ret_string = strings.Replace(ret_string, "@IMPORTS@", `import "github.com/varlink/go/varlink"`, 1)
 	}
 
-	pretty := []byte(ret_string)
-	//pretty, err := format.Source([]byte(ret_string))
-	//if err != nil {
-	//	return "", nil, err
-	//}
+	pretty, err := format.Source([]byte(ret_string))
+	if err != nil {
+		return "", nil, err
+	}
 
 	return pkgname, pretty, nil
 }
