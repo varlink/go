@@ -165,24 +165,29 @@ func generateTemplate(description string) (string, []byte, error) {
 			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n")
-		b.WriteString("\tvar out ")
-		writeType(&b, m.Out, true, 1)
-		b.WriteString("\n")
-
-		b.WriteString("\terr := c.Receive(&out, nil)\n" +
-			"\tif err != nil {\n" +
+		if len(m.Out.Fields) > 0 {
+			b.WriteString("\tvar out ")
+			writeType(&b, m.Out, true, 1)
+			b.WriteString("\n")
+			b.WriteString("\terr := c.Receive(&out, nil)\n");
+		} else {
+			b.WriteString("\terr := c.Receive(nil, nil)\n");
+		}
+		b.WriteString("\tif err != nil {\n" +
 			"\t\treturn err\n" +
 			"\t}\n")
 		for _, field := range m.Out.Fields {
+			b.WriteString("\tif " + sanitizeGoName(field.Name) + " != nil {\n")
 			switch field.Type.Kind {
 			case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
-				b.WriteString("\t" + sanitizeGoName(field.Name) + "= (")
+				b.WriteString("\t\t" + sanitizeGoName(field.Name) + "= (")
 				writeType(&b, field.Type, true, 1)
 				b.WriteString(") out." + strings.Title(field.Name) + "\n")
 
 			default:
-				b.WriteString("\t*" + sanitizeGoName(field.Name) + " = out." + strings.Title(field.Name) + "\n")
+				b.WriteString("\t\t*" + sanitizeGoName(field.Name) + " = out." + strings.Title(field.Name) + "\n")
 			}
+			b.WriteString("\t}\n")
 		}
 
 		b.WriteString("\treturn nil\n" +
