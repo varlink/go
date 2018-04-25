@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	//"go/format"
 	"io/ioutil"
 	"os"
 	"path"
@@ -82,7 +83,7 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 		if len(t.Fields) == 0 {
 			b.WriteString("struct{}")
 		} else {
-			b.WriteString("struct{\n")
+			b.WriteString("struct {\n")
 			for _, field := range t.Fields {
 				for i := 0; i < ident+1; i++ {
 					b.WriteString("\t")
@@ -121,14 +122,74 @@ func generateTemplate(description string) (string, []byte, error) {
 	b.WriteString("package " + pkgname + "\n\n")
 	b.WriteString("@IMPORTS@\n\n")
 
-	// Type declarations
+	b.WriteString("// Type declarations\n")
 	for _, a := range midl.Aliases {
 		b.WriteString("type " + a.Name + " ")
 		writeType(&b, a.Type, true, 0)
 		b.WriteString("\n\n")
 	}
 
-	// Local interface with all methods
+	b.WriteString("// Client method calls and reply readers\n")
+	for _, m := range midl.Methods {
+		b.WriteString("func " + m.Name + "(c *varlink.Connection")
+		for _, field := range m.In.Fields {
+			b.WriteString(", " + sanitizeGoName(field.Name) + " ")
+			writeType(&b, field.Type, false, 1)
+		}
+		b.WriteString(") error {\n")
+		if len(m.In.Fields) > 0 {
+			b.WriteString("\tvar in ")
+			writeType(&b, m.In, true, 1)
+			b.WriteString("\n")
+			for _, field := range m.In.Fields {
+				switch field.Type.Kind {
+				case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
+					b.WriteString("\tin." + strings.Title(field.Name) + " = ")
+					writeType(&b, field.Type, true, 1)
+					b.WriteString("(" + sanitizeGoName(field.Name) + ")\n")
+
+				default:
+					b.WriteString("\tin." + strings.Title(field.Name) + " = " + sanitizeGoName(field.Name) + "\n")
+				}
+			}
+			b.WriteString("\treturn c.Send(\"" + midl.Name + "." + m.Name + "\", in, false, false)\n" +
+				"}\n\n")
+		} else {
+			b.WriteString("\treturn c.Send(\"" + midl.Name + "." + m.Name + "\", nil, false, false)\n" +
+				"}\n\n")
+		}
+
+		b.WriteString("func Read" + m.Name + "(c *varlink.Connection")
+		for _, field := range m.Out.Fields {
+			b.WriteString(", " + sanitizeGoName(field.Name) + " *")
+			writeType(&b, field.Type, false, 1)
+		}
+		b.WriteString(") error {\n")
+		b.WriteString("\tvar out ")
+		writeType(&b, m.Out, true, 1)
+		b.WriteString("\n")
+
+		b.WriteString("\terr := c.Receive(&out, nil)\n" +
+			"\tif err != nil {\n" +
+			"\t\treturn err\n" +
+			"\t}\n")
+		for _, field := range m.Out.Fields {
+			switch field.Type.Kind {
+			case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
+				b.WriteString("\t" + sanitizeGoName(field.Name) + "= (")
+				writeType(&b, field.Type, true, 1)
+				b.WriteString(") out." + strings.Title(field.Name) + "\n")
+
+			default:
+				b.WriteString("\t*" + sanitizeGoName(field.Name) + " = out." + strings.Title(field.Name) + "\n")
+			}
+		}
+
+		b.WriteString("\treturn nil\n" +
+			"}\n\n")
+	}
+
+	b.WriteString("// Service interface with all methods\n")
 	b.WriteString("type " + pkgname + "Interface interface {\n")
 	for _, m := range midl.Methods {
 		b.WriteString("\t" + m.Name + "(c VarlinkCall")
@@ -140,10 +201,10 @@ func generateTemplate(description string) (string, []byte, error) {
 	}
 	b.WriteString("}\n\n")
 
-	// Local object with all methods
+	b.WriteString("// Service object with all methods\n")
 	b.WriteString("type VarlinkCall struct{ varlink.Call }\n\n")
 
-	// Reply methods for all varlink errors
+	b.WriteString("// Reply methods for all varlink errors\n")
 	for _, e := range midl.Errors {
 		b.WriteString("func (c *VarlinkCall) Reply" + e.Name + "(")
 		for i, field := range e.Type.Fields {
@@ -176,7 +237,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("}\n\n")
 	}
 
-	// Reply methods for all varlink methods
+	b.WriteString("// Reply methods for all varlink methods\n")
 	for _, m := range midl.Methods {
 		b.WriteString("func (c *VarlinkCall) Reply" + m.Name + "(")
 		for i, field := range m.Out.Fields {
@@ -209,7 +270,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("}\n\n")
 	}
 
-	// Dummy methods for all varlink methods
+	b.WriteString("// Dummy methods for all varlink methods\n")
 	for _, m := range midl.Methods {
 		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
@@ -221,7 +282,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			"}\n\n")
 	}
 
-	// Method call dispatcher
+	b.WriteString("// Method call dispatcher\n")
 	b.WriteString("func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {\n" +
 		"\tswitch methodname {\n")
 	for _, m := range midl.Methods {
@@ -257,16 +318,17 @@ func generateTemplate(description string) (string, []byte, error) {
 	b.WriteString("\tdefault:\n" +
 		"\t\treturn call.ReplyMethodNotFound(methodname)\n" +
 		"\t}\n" +
-		"}\n")
+		"}\n\n")
 
-	// Varlink interface name
+	b.WriteString("// Varlink interface name\n")
 	b.WriteString("func (s *VarlinkInterface) VarlinkGetName() string {\n" +
 		"\treturn `" + midl.Name + "`\n" + "}\n\n")
 
-	// Varlink interface description
+	b.WriteString("// Varlink interface description\n")
 	b.WriteString("func (s *VarlinkInterface) VarlinkGetDescription() string {\n" +
 		"\treturn `" + midl.Description + "\n`\n}\n\n")
 
+	b.WriteString("// Service interface\n")
 	b.WriteString("type VarlinkInterface struct {\n" +
 		"\t" + pkgname + "Interface\n" +
 		"}\n\n")
@@ -283,7 +345,13 @@ func generateTemplate(description string) (string, []byte, error) {
 		ret_string = strings.Replace(ret_string, "@IMPORTS@", `import "github.com/varlink/go/varlink"`, 1)
 	}
 
-	return pkgname, []byte(ret_string), nil
+	pretty := []byte(ret_string)
+	//pretty, err := format.Source([]byte(ret_string))
+	//if err != nil {
+	//	return "", nil, err
+	//}
+
+	return pkgname, pretty, nil
 }
 
 func generateFile(varlinkFile string) {
