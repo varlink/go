@@ -1,3 +1,3 @@
 package orgvarlinkcertification
 
-//go:generate $GOPATH/bin/varlink-go-interface-generator org.varlink.certification.varlink
+//go:generate go run ../../cmd/varlink-go-interface-generator/main.go org.varlink.certification.varlink
