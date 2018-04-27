@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+// Message flags
+const (
+	More = 1 << iota
+	Oneway = 1 << iota
+)
+
 // Error is a varlink error returned from a method call.
 type Error struct {
 	Name       string
@@ -27,7 +33,7 @@ type Connection struct {
 }
 
 // Send sends a method call.
-func (c *Connection) Send(method string, parameters interface{}, more bool, oneway bool) error {
+func (c *Connection) Send(method string, parameters interface{}, flags int) error {
 	type call struct {
 		Method     string      `json:"method"`
 		Parameters interface{} `json:"parameters,omitempty"`
@@ -35,7 +41,7 @@ func (c *Connection) Send(method string, parameters interface{}, more bool, onew
 		Oneway     bool        `json:"oneway,omitempty"`
 	}
 
-	if more && oneway {
+	if (flags & More != 0) && (flags & Oneway != 0) {
 		return &Error{
 			Name:       "org.varlink.InvalidParameter",
 			Parameters: "oneway",
@@ -45,8 +51,8 @@ func (c *Connection) Send(method string, parameters interface{}, more bool, onew
 	m := call{
 		Method:     method,
 		Parameters: parameters,
-		More:       more,
-		Oneway:     oneway,
+		More:       flags & More != 0,
+		Oneway:     flags & Oneway != 0,
 	}
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -97,7 +103,7 @@ func (c *Connection) Receive(parameters interface{}) (bool, error) {
 
 // Call sends a method call and returns the result of the call.
 func (c *Connection) Call(method string, parameters interface{}, result interface{}) error {
-	err := c.Send(method, &parameters, false, false)
+	err := c.Send(method, &parameters, 0)
 	if err != nil {
 		return err
 	}

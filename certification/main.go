@@ -22,7 +22,7 @@ func main() {
 
 	defer c.Close()
 
-	err = orgvarlinkcertification.Start(c, false, false)
+	err = orgvarlinkcertification.Start(c, 0)
 	if err != nil {
 		fmt.Println("Start() failed")
 		return
@@ -34,9 +34,9 @@ func main() {
 		fmt.Println("StartRead() failed")
 		return
 	}
-	fmt.Println("Start: " + client_id + "\n")
+	fmt.Println("Start: " + client_id)
 
-	err = orgvarlinkcertification.Test01(c, false, false, client_id)
+	err = orgvarlinkcertification.Test01(c, 0, client_id)
 	if err != nil {
 		fmt.Println("Test01() failed")
 		return

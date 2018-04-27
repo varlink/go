@@ -95,9 +95,9 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("\n\n")
 	}
 
-	b.WriteString("// Client method calls and reply readers\n")
+	b.WriteString("// Client method calls\n")
 	for _, m := range midl.Methods {
-		b.WriteString("func " + m.Name + "(c__ *varlink.Connection, more__ bool, oneway__ bool")
+		b.WriteString("func " + m.Name + "(c__ *varlink.Connection, flags__ int")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_ ")
 			writeType(&b, field.Type, false, 1)
@@ -118,10 +118,10 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tin." + strings.Title(field.Name) + " = " + field.Name + "_\n")
 				}
 			}
-			b.WriteString("\treturn c__.Send(\"" + midl.Name + "." + m.Name + "\", in, more__, oneway__)\n" +
+			b.WriteString("\treturn c__.Send(\"" + midl.Name + "." + m.Name + "\", in, flags__)\n" +
 				"}\n\n")
 		} else {
-			b.WriteString("\treturn c__.Send(\"" + midl.Name + "." + m.Name + "\", nil, more__, oneway__)\n" +
+			b.WriteString("\treturn c__.Send(\"" + midl.Name + "." + m.Name + "\", nil, flags__)\n" +
 				"}\n\n")
 		}
 
