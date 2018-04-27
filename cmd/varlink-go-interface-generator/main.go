@@ -97,12 +97,51 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	b.WriteString("// Client method calls\n")
 	for _, m := range midl.Methods {
-		b.WriteString("func " + m.Name + "(c__ *varlink.Connection, flags__ int")
+		b.WriteString("type " + m.Name + "_methods struct{}\n")
+		b.WriteString("func " + m.Name + "() " + m.Name + "_methods { return " + m.Name + "_methods{} }\n\n")
+
+		b.WriteString("func (m " + m.Name + "_methods) Call(c *varlink.Connection")
 		for _, field := range m.In.Fields {
-			b.WriteString(", " + field.Name + "_ ")
+			b.WriteString(", " + field.Name + "_in_ ")
 			writeType(&b, field.Type, false, 1)
 		}
-		b.WriteString(") error {\n")
+		b.WriteString(") (")
+		for _, field := range m.Out.Fields {
+			b.WriteString(field.Name + "_out_ ")
+			writeType(&b, field.Type, false, 1)
+			b.WriteString(", ")
+		}
+		b.WriteString("err_ error) {\n")
+		b.WriteString("reply, err_ := m.Send(c, ")
+		for _, field := range m.In.Fields {
+			b.WriteString(field.Name + "_in_ ")
+			b.WriteString(", ")
+		}
+		b.WriteString("0)\n")
+		b.WriteString("if err_ != nil {\n" +
+			"\treturn\n" +
+			"}\n")
+		b.WriteString("\t")
+		for _, field := range m.Out.Fields {
+			b.WriteString(field.Name + "_out_ ")
+			b.WriteString(", ")
+		}
+		b.WriteString("_, err_ = reply(c)\n")
+		b.WriteString("\treturn\n" +
+			"}\n\n")
+
+		b.WriteString("func (m " + m.Name + "_methods) Send(c *varlink.Connection, ")
+		for _, field := range m.In.Fields {
+			b.WriteString(field.Name + "_in_ ")
+			writeType(&b, field.Type, false, 1)
+			b.WriteString(", ")
+		}
+		b.WriteString("flags int) (func(*varlink.Connection) (")
+		for _, field := range m.Out.Fields {
+			writeType(&b, field.Type, false, 1)
+			b.WriteString(", ")
+		}
+		b.WriteString("bool, error), error) {\n")
 		if len(m.In.Fields) > 0 {
 			b.WriteString("\tvar in ")
 			writeType(&b, m.In, true, 1)
@@ -112,51 +151,51 @@ func generateTemplate(description string) (string, []byte, error) {
 				case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
 					b.WriteString("\tin." + strings.Title(field.Name) + " = ")
 					writeType(&b, field.Type, true, 1)
-					b.WriteString("(" + field.Name + "_)\n")
+					b.WriteString("(" + field.Name + "_in_)\n")
 
 				default:
-					b.WriteString("\tin." + strings.Title(field.Name) + " = " + field.Name + "_\n")
+					b.WriteString("\tin." + strings.Title(field.Name) + " = " + field.Name + "_in_\n")
 				}
 			}
-			b.WriteString("\treturn c__.Send(\"" + midl.Name + "." + m.Name + "\", in, flags__)\n" +
-				"}\n\n")
+			b.WriteString("\terr := c.Send(\"" + midl.Name + "." + m.Name + "\", in, flags)\n")
 		} else {
-			b.WriteString("\treturn c__.Send(\"" + midl.Name + "." + m.Name + "\", nil, flags__)\n" +
-				"}\n\n")
+			b.WriteString("\terr := c.Send(\"" + midl.Name + "." + m.Name + "\", nil, flags)\n")
 		}
-
-		b.WriteString("func Read" + m.Name + "_(c__ *varlink.Connection")
+		b.WriteString("if err != nil {\n" +
+			"\treturn nil, err\n" +
+			"}\n")
+		b.WriteString("\treply := func(c *varlink.Connection) (")
 		for _, field := range m.Out.Fields {
-			b.WriteString(", " + field.Name + "_ *")
-			writeType(&b, field.Type, false, 1)
+			b.WriteString(field.Name + "_out_ ")
+			writeType(&b, field.Type, false, 3)
+			b.WriteString(", ")
 		}
-		b.WriteString(") (bool, error) {\n")
+		b.WriteString("continues bool, err error) {\n")
 		if len(m.Out.Fields) > 0 {
-			b.WriteString("\tvar out ")
-			writeType(&b, m.Out, true, 1)
+			b.WriteString("\t\tvar out ")
+			writeType(&b, m.Out, true, 2)
 			b.WriteString("\n")
-			b.WriteString("\tcontinues_, err := c__.Receive(&out)\n")
+			b.WriteString("\t\tcontinues, err = c.Receive(&out)\n")
 		} else {
-			b.WriteString("\tcontinues_, err := c__.Receive(nil)\n")
+			b.WriteString("\t\tcontinues, err = c.Receive(nil)\n")
 		}
-		b.WriteString("\tif err != nil {\n" +
-			"\t\treturn false, err\n" +
-			"\t}\n")
+		b.WriteString("\t\tif err != nil {\n" +
+			"\t\t\treturn\n" +
+			"\t\t}\n")
 		for _, field := range m.Out.Fields {
-			b.WriteString("\tif " + field.Name + "_ != nil {\n")
+			b.WriteString("\t\t" + field.Name + "_out_ = ")
 			switch field.Type.Kind {
 			case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
-				b.WriteString("\t\t*" + field.Name + "_ = ")
 				writeType(&b, field.Type, false, 2)
-				b.WriteString(" (out." + strings.Title(field.Name) + ")\n")
+				b.WriteString("(out." + strings.Title(field.Name) + ")\n")
 
 			default:
-				b.WriteString("\t\t*" + field.Name + "_ = out." + strings.Title(field.Name) + "\n")
+				b.WriteString("out." + strings.Title(field.Name) + "\n")
 			}
-			b.WriteString("\t}\n")
 		}
-
-		b.WriteString("\treturn continues_, nil\n" +
+		b.WriteString("\t\treturn\n" +
+			"\t}\n")
+		b.WriteString("\treturn reply, nil\n" +
 			"}\n\n")
 	}
 

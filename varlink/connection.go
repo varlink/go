@@ -9,7 +9,7 @@ import (
 
 // Message flags
 const (
-	More = 1 << iota
+	More   = 1 << iota
 	Oneway = 1 << iota
 )
 
@@ -41,7 +41,7 @@ func (c *Connection) Send(method string, parameters interface{}, flags int) erro
 		Oneway     bool        `json:"oneway,omitempty"`
 	}
 
-	if (flags & More != 0) && (flags & Oneway != 0) {
+	if (flags&More != 0) && (flags&Oneway != 0) {
 		return &Error{
 			Name:       "org.varlink.InvalidParameter",
 			Parameters: "oneway",
@@ -51,8 +51,8 @@ func (c *Connection) Send(method string, parameters interface{}, flags int) erro
 	m := call{
 		Method:     method,
 		Parameters: parameters,
-		More:       flags & More != 0,
-		Oneway:     flags & Oneway != 0,
+		More:       flags&More != 0,
+		Oneway:     flags&Oneway != 0,
 	}
 	b, err := json.Marshal(m)
 	if err != nil {

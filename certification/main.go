@@ -22,30 +22,16 @@ func main() {
 
 	defer c.Close()
 
-	err = orgvarlinkcertification.Start(c, 0)
+	client_id, err := orgvarlinkcertification.Start().Call(c)
 	if err != nil {
 		fmt.Println("Start() failed")
 		return
 	}
-
-	var client_id string
-	_, err = orgvarlinkcertification.ReadStart_(c, &client_id)
-	if err != nil {
-		fmt.Println("StartRead() failed")
-		return
-	}
 	fmt.Println("Start: " + client_id)
 
-	err = orgvarlinkcertification.Test01(c, 0, client_id)
+	flag, err := orgvarlinkcertification.Test01().Call(c, client_id)
 	if err != nil {
 		fmt.Println("Test01() failed")
-		return
-	}
-
-	var flag bool
-	_, err = orgvarlinkcertification.ReadTest01_(c, &flag)
-	if err != nil {
-		fmt.Println("ReadTest01() failed")
 		return
 	}
 	fmt.Printf("Test01: %t\n", flag)
