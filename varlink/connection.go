@@ -7,7 +7,10 @@ import (
 	"strings"
 )
 
-// Message flags
+// More is a flag for Send() to indicate that the client expects more than one method
+// reply to this call.
+// Oneway is a flag for Send() to indicate tha the service must not send a method
+// reply to this call.
 const (
 	More   = 1 << iota
 	Oneway = 1 << iota
