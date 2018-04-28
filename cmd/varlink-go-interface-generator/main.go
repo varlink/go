@@ -112,12 +112,11 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString(", ")
 		}
 		b.WriteString("err_ error) {\n")
-		b.WriteString("reply, err_ := m.Send(c, ")
+		b.WriteString("receive, err_ := m.Send(c, 0")
 		for _, field := range m.In.Fields {
-			b.WriteString(field.Name + "_in_ ")
-			b.WriteString(", ")
+			b.WriteString(", " + field.Name + "_in_ ")
 		}
-		b.WriteString("0)\n")
+		b.WriteString(")\n")
 		b.WriteString("if err_ != nil {\n" +
 			"\treturn\n" +
 			"}\n")
@@ -126,22 +125,21 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString(field.Name + "_out_ ")
 			b.WriteString(", ")
 		}
-		b.WriteString("_, err_ = reply()\n")
+		b.WriteString("_, err_ = receive()\n")
 		b.WriteString("\treturn\n" +
 			"}\n\n")
 
-		b.WriteString("func (m " + m.Name + "_methods) Send(c *varlink.Connection, ")
+		b.WriteString("func (m " + m.Name + "_methods) Send(c *varlink.Connection, flags uint64")
 		for _, field := range m.In.Fields {
-			b.WriteString(field.Name + "_in_ ")
+			b.WriteString(", " + field.Name + "_in_ ")
 			writeType(&b, field.Type, false, 1)
-			b.WriteString(", ")
 		}
-		b.WriteString("flags int) (func() (")
+		b.WriteString(") (func() (")
 		for _, field := range m.Out.Fields {
 			writeType(&b, field.Type, false, 1)
 			b.WriteString(", ")
 		}
-		b.WriteString("bool, error), error) {\n")
+		b.WriteString("uint64, error), error) {\n")
 		if len(m.In.Fields) > 0 {
 			b.WriteString("\tvar in ")
 			writeType(&b, m.In, true, 1)
@@ -157,27 +155,27 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tin." + strings.Title(field.Name) + " = " + field.Name + "_in_\n")
 				}
 			}
-			b.WriteString("\terr := c.Send(\"" + midl.Name + "." + m.Name + "\", in, flags)\n")
+			b.WriteString("\treceive, err := c.Send(\"" + midl.Name + "." + m.Name + "\", in, flags)\n")
 		} else {
-			b.WriteString("\terr := c.Send(\"" + midl.Name + "." + m.Name + "\", nil, flags)\n")
+			b.WriteString("\treceive, err := c.Send(\"" + midl.Name + "." + m.Name + "\", nil, flags)\n")
 		}
 		b.WriteString("if err != nil {\n" +
 			"\treturn nil, err\n" +
 			"}\n")
-		b.WriteString("\treply := func() (")
+		b.WriteString("\treturn func() (")
 		for _, field := range m.Out.Fields {
 			b.WriteString(field.Name + "_out_ ")
 			writeType(&b, field.Type, false, 3)
 			b.WriteString(", ")
 		}
-		b.WriteString("continues bool, err error) {\n")
+		b.WriteString("flags uint64, err error) {\n")
 		if len(m.Out.Fields) > 0 {
 			b.WriteString("\t\tvar out ")
 			writeType(&b, m.Out, true, 2)
 			b.WriteString("\n")
-			b.WriteString("\t\tcontinues, err = c.Receive(&out)\n")
+			b.WriteString("\t\tflags, err = receive(&out)\n")
 		} else {
-			b.WriteString("\t\tcontinues, err = c.Receive(nil)\n")
+			b.WriteString("\t\tflags, err = receive(nil)\n")
 		}
 		b.WriteString("\t\tif err != nil {\n" +
 			"\t\t\treturn\n" +
@@ -194,9 +192,8 @@ func generateTemplate(description string) (string, []byte, error) {
 			}
 		}
 		b.WriteString("\t\treturn\n" +
-			"\t}\n")
-		b.WriteString("\treturn reply, nil\n" +
-			"}\n\n")
+			"\t}, nil\n")
+		b.WriteString("}\n\n")
 	}
 
 	b.WriteString("// Service interface with all methods\n")

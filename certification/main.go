@@ -90,4 +90,23 @@ func main() {
 		return
 	}
 	fmt.Printf("Test09: '%t'\n", t9)
+
+	receive10, err := orgvarlinkcertification.Test10().Send(c, varlink.More, client_id, t9)
+	if err != nil {
+		fmt.Println("Test10() failed")
+		return
+	}
+
+	for {
+		s10, flags10, err := receive10()
+		if err != nil {
+			fmt.Println("Test10() receive failed")
+			return
+		}
+		fmt.Printf("Test10: '%t'\n", s10)
+
+		if flags10 & varlink.Continues == 0 {
+			break;
+		}
+	}
 }
