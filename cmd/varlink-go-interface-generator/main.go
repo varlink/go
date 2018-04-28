@@ -126,7 +126,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString(field.Name + "_out_ ")
 			b.WriteString(", ")
 		}
-		b.WriteString("_, err_ = reply(c)\n")
+		b.WriteString("_, err_ = reply()\n")
 		b.WriteString("\treturn\n" +
 			"}\n\n")
 
@@ -136,7 +136,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			writeType(&b, field.Type, false, 1)
 			b.WriteString(", ")
 		}
-		b.WriteString("flags int) (func(*varlink.Connection) (")
+		b.WriteString("flags int) (func() (")
 		for _, field := range m.Out.Fields {
 			writeType(&b, field.Type, false, 1)
 			b.WriteString(", ")
@@ -164,7 +164,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("if err != nil {\n" +
 			"\treturn nil, err\n" +
 			"}\n")
-		b.WriteString("\treply := func(c *varlink.Connection) (")
+		b.WriteString("\treply := func() (")
 		for _, field := range m.Out.Fields {
 			b.WriteString(field.Name + "_out_ ")
 			writeType(&b, field.Type, false, 3)
