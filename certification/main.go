@@ -26,7 +26,7 @@ func main() {
 		fmt.Println("Start() failed")
 		return
 	}
-	fmt.Printf("Start: '%s'\n" + client_id)
+	fmt.Printf("Start: '%v'\n", client_id)
 
 	b1, err := orgvarlinkcertification.Test01().Call(c, client_id)
 	if err != nil {
@@ -119,12 +119,12 @@ func main() {
 		fmt.Println("Test11() failed")
 		return
 	}
-	fmt.Println("Test11: OK")
+	fmt.Println("Test11: ''")
 
 	end, err := orgvarlinkcertification.End().Call(c, client_id)
 	if err != nil {
 		fmt.Println("End() failed")
 		return
 	}
-	fmt.Printf("End: %v\n", end)
+	fmt.Printf("End: '%v'\n", end)
 }
