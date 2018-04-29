@@ -97,16 +97,34 @@ func main() {
 		return
 	}
 
+	fmt.Println("Test10() Send:")
+	var a10 []string
 	for {
 		s10, flags10, err := receive10()
 		if err != nil {
 			fmt.Println("Test10() receive failed")
 			return
 		}
-		fmt.Printf("Test10: '%v'\n", s10)
+		a10 = append(a10, s10)
+		fmt.Printf("  Receive: '%v'\n", s10)
 
 		if flags10 & varlink.Continues == 0 {
 			break;
 		}
 	}
+	fmt.Printf("Test10: '%v'\n", a10)
+
+	err = orgvarlinkcertification.Test11().Call(c, client_id, a10)
+	if err != nil {
+		fmt.Println("Test11() failed")
+		return
+	}
+	fmt.Println("Test11: OK")
+
+	end, err := orgvarlinkcertification.End().Call(c, client_id)
+	if err != nil {
+		fmt.Println("End() failed")
+		return
+	}
+	fmt.Printf("End: %v\n", end)
 }
