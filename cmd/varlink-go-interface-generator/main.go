@@ -199,7 +199,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	b.WriteString("// Service interface with all methods\n")
 	b.WriteString("type " + pkgname + "Interface interface {\n")
 	for _, m := range midl.Methods {
-		b.WriteString("\t" + m.Name + "(c__ VarlinkCall")
+		b.WriteString("\t" + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_ ")
 			writeType(&b, field.Type, false, 1)
@@ -213,7 +213,7 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	b.WriteString("// Reply methods for all varlink errors\n")
 	for _, e := range midl.Errors {
-		b.WriteString("func (c__ *VarlinkCall) Reply" + e.Name + "(")
+		b.WriteString("func (c *VarlinkCall) Reply" + e.Name + "(")
 		for i, field := range e.Type.Fields {
 			if i > 0 {
 				b.WriteString(", ")
@@ -237,16 +237,16 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "_\n")
 				}
 			}
-			b.WriteString("\treturn c__.ReplyError(\"" + midl.Name + "." + e.Name + "\", &out)\n")
+			b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", &out)\n")
 		} else {
-			b.WriteString("\treturn c__.ReplyError(\"" + midl.Name + "." + e.Name + "\", nil)\n")
+			b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", nil)\n")
 		}
 		b.WriteString("}\n\n")
 	}
 
 	b.WriteString("// Reply methods for all varlink methods\n")
 	for _, m := range midl.Methods {
-		b.WriteString("func (c__ *VarlinkCall) Reply" + m.Name + "(")
+		b.WriteString("func (c *VarlinkCall) Reply" + m.Name + "(")
 		for i, field := range m.Out.Fields {
 			if i > 0 {
 				b.WriteString(", ")
@@ -270,27 +270,27 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "_\n")
 				}
 			}
-			b.WriteString("\treturn c__.Reply(&out)\n")
+			b.WriteString("\treturn c.Reply(&out)\n")
 		} else {
-			b.WriteString("\treturn c__.Reply(nil)\n")
+			b.WriteString("\treturn c.Reply(nil)\n")
 		}
 		b.WriteString("}\n\n")
 	}
 
-	b.WriteString("// Dummy methods for all varlink methods\n")
+	b.WriteString("// Dummy implementations for all varlink methods\n")
 	for _, m := range midl.Methods {
-		b.WriteString("func (s__ *VarlinkInterface) " + m.Name + "(c__ VarlinkCall")
+		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_ ")
 			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n" +
-			"\treturn c__.ReplyMethodNotImplemented(\"" + m.Name + "\")\n" +
+			"\treturn c.ReplyMethodNotImplemented(\"" + m.Name + "\")\n" +
 			"}\n\n")
 	}
 
 	b.WriteString("// Method call dispatcher\n")
-	b.WriteString("func (s__ *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {\n" +
+	b.WriteString("func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {\n" +
 		"\tswitch methodname {\n")
 	for _, m := range midl.Methods {
 		b.WriteString("\tcase \"" + m.Name + "\":\n")
@@ -302,7 +302,7 @@ func generateTemplate(description string) (string, []byte, error) {
 				"\t\tif err != nil {\n" +
 				"\t\t\treturn call.ReplyInvalidParameter(\"parameters\")\n" +
 				"\t\t}\n")
-			b.WriteString("\t\treturn s__." + pkgname + "Interface." + m.Name + "(VarlinkCall{call}")
+			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call}")
 			if len(m.In.Fields) > 0 {
 				for _, field := range m.In.Fields {
 					switch field.Type.Kind {
@@ -318,7 +318,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			}
 			b.WriteString(")\n")
 		} else {
-			b.WriteString("\t\treturn s__." + pkgname + "Interface." + m.Name + "(VarlinkCall{call})\n")
+			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call})\n")
 		}
 		b.WriteString("\n")
 	}
@@ -328,11 +328,11 @@ func generateTemplate(description string) (string, []byte, error) {
 		"}\n\n")
 
 	b.WriteString("// Varlink interface name\n")
-	b.WriteString("func (s__ *VarlinkInterface) VarlinkGetName() string {\n" +
+	b.WriteString("func (s *VarlinkInterface) VarlinkGetName() string {\n" +
 		"\treturn `" + midl.Name + "`\n" + "}\n\n")
 
 	b.WriteString("// Varlink interface description\n")
-	b.WriteString("func (s__ *VarlinkInterface) VarlinkGetDescription() string {\n" +
+	b.WriteString("func (s *VarlinkInterface) VarlinkGetDescription() string {\n" +
 		"\treturn `" + midl.Description + "\n`\n}\n\n")
 
 	b.WriteString("// Service interface\n")
