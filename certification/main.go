@@ -108,13 +108,13 @@ func main() {
 		a10 = append(a10, s10)
 		fmt.Printf("  Receive: '%v'\n", s10)
 
-		if flags10 & varlink.Continues == 0 {
-			break;
+		if flags10&varlink.Continues == 0 {
+			break
 		}
 	}
 	fmt.Printf("Test10: '%v'\n", a10)
 
-	err = orgvarlinkcertification.Test11().Call(c, client_id, a10)
+	_, err = orgvarlinkcertification.Test11().Send(c, varlink.Oneway, client_id, a10)
 	if err != nil {
 		fmt.Println("Test11() failed")
 		return
