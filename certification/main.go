@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"github.com/varlink/go/certification/orgvarlinkcertification"
 	"github.com/varlink/go/varlink"
+	"io"
 	"os"
+	"time"
 )
 
 func run_client(address string) {
@@ -124,8 +127,89 @@ func run_client(address string) {
 	fmt.Printf("End: '%v'\n", end)
 }
 
+// Service
+type client struct {
+	id string
+	time time.Time
+}
+
+type test struct {
+	orgvarlinkcertification.VarlinkInterface
+	clients map[string]client
+}
+
+func (t *test) Start(c orgvarlinkcertification.VarlinkCall) error {
+	// Get new UUID
+	id128 := make([]byte, 16)
+	io.ReadFull(rand.Reader, id128)
+	id128[8] = id128[8]&^0xc0 | 0x80
+	id128[6] = id128[6]&^0xf0 | 0x40
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", id128[0:4], id128[4:6], id128[6:8], id128[8:10], id128[10:])
+
+	// Garbage collect old clients
+	for key, client := range t.clients {
+		if time.Since(client.time).Minutes() > 1 {
+			delete(t.clients, key)
+		}
+	}
+
+	if len(t.clients) > 100 {
+		return fmt.Errorf("Too many clients")
+	}
+
+	// New Client
+	t.clients[uuid] = client{
+		id: uuid,
+		time: time.Now(),
+	}
+
+	return c.ReplyStart(uuid)
+}
+
+func (t *test) Test01(c orgvarlinkcertification.VarlinkCall, client_id_ string) error {
+	_, ok := t.clients[client_id_]
+	if !ok {
+		return c.ReplyClientIdError()
+	}
+
+	return c.ReplyTest01(true)
+}
+
+func (t *test) Test02(c orgvarlinkcertification.VarlinkCall, client_id_ string, bool_ bool) error {
+	_, ok := t.clients[client_id_]
+	if !ok {
+		return c.ReplyClientIdError()
+	}
+
+	if !bool_ {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	return c.ReplyTest02(1)
+}
+
 func run_server(address string) {
-	fmt.Println("Coming soon ...")
+	t := test{
+		clients: make(map[string]client),
+	}
+
+	s, err := varlink.NewService(
+		"Varlink",
+		"Certification",
+		"1",
+		"https://github.com/varlink/go",
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	s.RegisterInterface(orgvarlinkcertification.VarlinkNew(&t))
+	err = s.Listen(address, 0)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func main() {
