@@ -1,19 +1,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/varlink/go/certification/orgvarlinkcertification"
 	"github.com/varlink/go/varlink"
 	"os"
 )
 
-func main() {
-	address := "tcp:test.varlink.org:23457"
-
-	if len(os.Args) == 2 {
-		address = os.Args[1]
-	}
-
+func run_client(address string) {
 	c, err := varlink.NewConnection(address)
 	if err != nil {
 		fmt.Println("Failed to connect")
@@ -127,4 +122,29 @@ func main() {
 		return
 	}
 	fmt.Printf("End: '%v'\n", end)
+}
+
+func run_server(address string) {
+	fmt.Println("Coming soon ...")
+}
+
+func main() {
+	var address string
+	var client bool
+
+	flag.StringVar(&address, "varlink", "", "Varlink address")
+	flag.BoolVar(&client, "client", false, "Run as client")
+	flag.Parse()
+
+	if address == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if client {
+		run_client(address)
+		return
+	}
+
+	run_server(address)
 }
