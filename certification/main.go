@@ -8,6 +8,7 @@ import (
 	"github.com/varlink/go/varlink"
 	"io"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -135,18 +136,28 @@ type client struct {
 
 type test struct {
 	orgvarlinkcertification.VarlinkInterface
-	clients map[string]client
+	mutex        sync.Mutex
+	clients map[string]*client
 }
 
-func (t *test) Start(c orgvarlinkcertification.VarlinkCall) error {
-	// Get new UUID
+func (t *test) Client(id string) *client {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	return t.clients[id]
+}
+
+func (t *test) NewClient() *client {
 	id128 := make([]byte, 16)
 	io.ReadFull(rand.Reader, id128)
 	id128[8] = id128[8]&^0xc0 | 0x80
 	id128[6] = id128[6]&^0xf0 | 0x40
 	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", id128[0:4], id128[4:6], id128[6:8], id128[8:10], id128[10:])
 
-	// Garbage collect old clients
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	// Garbage-collect old clients
 	for key, client := range t.clients {
 		if time.Since(client.time).Minutes() > 1 {
 			delete(t.clients, key)
@@ -154,21 +165,31 @@ func (t *test) Start(c orgvarlinkcertification.VarlinkCall) error {
 	}
 
 	if len(t.clients) > 100 {
-		return fmt.Errorf("Too many clients")
+		return nil
 	}
 
-	// New Client
-	t.clients[uuid] = client{
+	c := client{
 		id: uuid,
 		time: time.Now(),
 	}
+	t.clients[uuid] = &c
 
-	return c.ReplyStart(uuid)
+	return &c
+}
+
+func (t *test) RemoveClient(id string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	delete(t.clients, id)
+}
+
+func (t *test) Start(c orgvarlinkcertification.VarlinkCall) error {
+	return c.ReplyStart(t.NewClient().id)
 }
 
 func (t *test) Test01(c orgvarlinkcertification.VarlinkCall, client_id_ string) error {
-	_, ok := t.clients[client_id_]
-	if !ok {
+	if t.Client(client_id_) == nil {
 		return c.ReplyClientIdError()
 	}
 
@@ -176,8 +197,7 @@ func (t *test) Test01(c orgvarlinkcertification.VarlinkCall, client_id_ string) 
 }
 
 func (t *test) Test02(c orgvarlinkcertification.VarlinkCall, client_id_ string, bool_ bool) error {
-	_, ok := t.clients[client_id_]
-	if !ok {
+	if t.Client(client_id_) == nil {
 		return c.ReplyClientIdError()
 	}
 
@@ -188,9 +208,42 @@ func (t *test) Test02(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 	return c.ReplyTest02(1)
 }
 
+func (t *test) Test03(c orgvarlinkcertification.VarlinkCall, client_id_ string, int_ int64) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if int_ != 1 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	return c.ReplyTest03(1.0)
+}
+
+func (t *test) Test04(c orgvarlinkcertification.VarlinkCall, client_id_ string, float_ float64) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if float_ != 1.0 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	return c.ReplyTest04("ping")
+}
+
+func (t *test) End(c orgvarlinkcertification.VarlinkCall, client_id_ string) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	t.RemoveClient(client_id_)
+	return c.ReplyEnd(true)
+}
+
 func run_server(address string) {
 	t := test{
-		clients: make(map[string]client),
+		clients: make(map[string]*client),
 	}
 
 	s, err := varlink.NewService(
