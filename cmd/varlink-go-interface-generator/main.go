@@ -285,7 +285,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n" +
-			"\treturn c.ReplyMethodNotImplemented(\"" + m.Name + "\")\n" +
+			"\treturn c.ReplyMethodNotImplemented(\"" + midl.Name + "." + m.Name + "\")\n" +
 			"}\n\n")
 	}
 
