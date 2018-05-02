@@ -7,6 +7,7 @@ import (
 	"github.com/varlink/go/certification/orgvarlinkcertification"
 	"github.com/varlink/go/varlink"
 	"io"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -230,6 +231,47 @@ func (t *test) Test04(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 	}
 
 	return c.ReplyTest04("ping")
+}
+func (t *test) Test05(c orgvarlinkcertification.VarlinkCall, client_id_ string, string_ string) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if string_ != "ping" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	return c.ReplyTest05(false, 2, math.Pi, "a lot of string")
+}
+
+func (t *test) Test06(c orgvarlinkcertification.VarlinkCall, client_id_ string, bool_ bool, int_ int64, float_ float64, string_ string) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if bool_ {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if int_ != 2{
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if float_ != math.Pi {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if string_ != "a lot of string" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	type s struct{
+		Bool bool
+		Int int64
+		Float float64
+		String string
+	}
+	return c.ReplyTest06(s{Bool: false, Int: 2, Float: math.Pi, String: "a lot of string"})
 }
 
 func (t *test) End(c orgvarlinkcertification.VarlinkCall, client_id_ string) error {
