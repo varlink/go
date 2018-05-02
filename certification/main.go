@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/varlink/go/certification/orgvarlinkcertification"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -131,13 +133,13 @@ func run_client(address string) {
 
 // Service
 type client struct {
-	id string
+	id   string
 	time time.Time
 }
 
 type test struct {
 	orgvarlinkcertification.VarlinkInterface
-	mutex        sync.Mutex
+	mutex   sync.Mutex
 	clients map[string]*client
 }
 
@@ -170,7 +172,7 @@ func (t *test) NewClient() *client {
 	}
 
 	c := client{
-		id: uuid,
+		id:   uuid,
 		time: time.Now(),
 	}
 	t.clients[uuid] = &c
@@ -253,7 +255,7 @@ func (t *test) Test06(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 		return c.ReplyCertificationError(nil, nil)
 	}
 
-	if int_ != 2{
+	if int_ != 2 {
 		return c.ReplyCertificationError(nil, nil)
 	}
 
@@ -265,13 +267,194 @@ func (t *test) Test06(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 		return c.ReplyCertificationError(nil, nil)
 	}
 
-	type s struct{
-		Bool bool
-		Int int64
-		Float float64
+	s := struct {
+		Bool   bool
+		Int    int64
+		Float  float64
 		String string
+	}{
+		Bool:   false,
+		Int:    2,
+		Float:  math.Pi,
+		String: "a lot of string",
 	}
-	return c.ReplyTest06(s{Bool: false, Int: 2, Float: math.Pi, String: "a lot of string"})
+	return c.ReplyTest06(s)
+}
+
+func (t *test) Test07(c orgvarlinkcertification.VarlinkCall, client_id_ string, struct_ struct {
+	Bool   bool
+	Int    int64
+	Float  float64
+	String string
+}) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if struct_.Bool {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if struct_.Int != 2 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if struct_.Float != math.Pi {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if struct_.String != "a lot of string" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	m := map[string]string{
+		"bar": "Bar",
+		"foo": "Foo",
+	}
+	return c.ReplyTest07(m)
+}
+
+func (t *test) Test08(c orgvarlinkcertification.VarlinkCall, client_id_ string, map_ map[string]string) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if len(map_) != 2 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if map_["bar"] != "Bar" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if map_["foo"] != "Foo" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	m := map[string]struct{}{
+		"one":   {},
+		"two":   {},
+		"three": {},
+	}
+	return c.ReplyTest08(m)
+}
+
+func (t *test) Test09(c orgvarlinkcertification.VarlinkCall, client_id_ string, set_ map[string]struct{}) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if len(set_) != 3 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	_, ok := set_["one"]
+	if !ok {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	_, ok = set_["two"]
+	if !ok {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	_, ok = set_["three"]
+	if !ok {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	m := orgvarlinkcertification.MyType{
+		Object: json.RawMessage(`{"method": "org.varlink.certification.Test09", "parameters": {"map": {"foo": "Foo", "bar": "Bar"}}}`),
+		Enum:   "two",
+		Struct: struct {
+			First  int64  `json:"first"`
+			Second string `json:"second"`
+		}{First: 1, Second: "2"},
+		Array:                 []string{"one", "two", "three"},
+		Dictionary:            map[string]string{"foo": "Foo", "bar": "Bar"},
+		Stringset:             map[string]struct{}{"one": {}, "two": {}, "three": {}},
+		Nullable:              nil,
+		Nullable_array_struct: nil,
+		Interface: orgvarlinkcertification.Interface{
+			Foo: &[]*map[string]string{
+				nil,
+				&map[string]string{"Foo": "foo", "Bar": "bar"},
+				nil,
+				&map[string]string{"one": "foo", "two": "bar"},
+			},
+			Anon: struct {
+				Foo bool `json:"foo"`
+				Bar bool `json:"bar"`
+			}{Foo: true, Bar: false},
+		},
+	}
+	return c.ReplyTest09(m)
+}
+
+func (t *test) Test10(c orgvarlinkcertification.VarlinkCall, client_id_ string, mytype_ orgvarlinkcertification.MyType) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	// FIXME:
+
+	if mytype_.Enum != "two" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Struct.First != 1 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Struct.Second != "2" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if len(mytype_.Array) != 3 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Array[0] != "one" && mytype_.Array[1] != "two" && mytype_.Array[2] != "three" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	// FIXME:
+
+	if !c.WantsMore() {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	for i := 1; i <= 10; i++ {
+		c.Continues = i < 10
+		err := c.ReplyTest10("Reply number " + strconv.Itoa(i))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (t *test) Test11(c orgvarlinkcertification.VarlinkCall, client_id_ string, last_more_replies_ []string) error {
+	if t.Client(client_id_) == nil {
+		return c.ReplyClientIdError()
+	}
+
+	if len(last_more_replies_) != 10 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if !c.IsOneway() {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	for i := 1; i <= 10; i++ {
+		if last_more_replies_[i] != "Reply number "+strconv.Itoa(i) {
+			return c.ReplyCertificationError(nil, nil)
+		}
+	}
+
+	return c.ReplyTest11()
 }
 
 func (t *test) End(c orgvarlinkcertification.VarlinkCall, client_id_ string) error {
