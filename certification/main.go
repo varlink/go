@@ -474,7 +474,58 @@ func (t *test) Test10(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 		return c.ReplyCertificationError(nil, nil)
 	}
 
-	// FIXME:
+	if mytype_.Nullable != nil {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Nullable_array_struct != nil {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	i := *mytype_.Interface.Foo
+	if len(i) != 4 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if i[0] != nil {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if len(*i[1]) != 2 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if (*i[1])["Foo"] != "foo" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if (*i[1])["Bar"] != "bar" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if i[2] != nil {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if len(*i[3] )!= 2 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if (*i[3])["one"] != "foo" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if (*i[3])["two"] != "bar" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if !mytype_.Interface.Anon.Foo {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Interface.Anon.Bar {
+		return c.ReplyCertificationError(nil, nil)
+	}
 
 	if !c.WantsMore() {
 		return c.ReplyCertificationError(nil, nil)
