@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/varlink/go/certification/orgvarlinkcertification"
+	"github.com/varlink/go/cmd/varlink-go-certification/orgvarlinkcertification"
 	"github.com/varlink/go/varlink"
 	"io"
 	"math"
@@ -507,7 +507,7 @@ func (t *test) Test10(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 		return c.ReplyCertificationError(nil, nil)
 	}
 
-	if len(*i[3] )!= 2 {
+	if len(*i[3]) != 2 {
 		return c.ReplyCertificationError(nil, nil)
 	}
 
