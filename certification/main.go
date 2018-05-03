@@ -396,7 +396,32 @@ func (t *test) Test10(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 		return c.ReplyClientIdError()
 	}
 
-	// FIXME:
+	var o struct {
+		Method     string `json:"method"`
+		Parameters struct {
+			Map map[string]string `json:"map"`
+		} `json:"parameters"`
+	}
+	err := json.Unmarshal(mytype_.Object, o)
+	if err != nil {
+		return err
+	}
+
+	if o.Method != "org.varlink.certification.Test09" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if len(o.Parameters.Map) != 2 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if o.Parameters.Map["bar"] != "Bar" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if o.Parameters.Map["foo"] != "Foo" {
+		return c.ReplyCertificationError(nil, nil)
+	}
 
 	if mytype_.Enum != "two" {
 		return c.ReplyCertificationError(nil, nil)
@@ -415,6 +440,37 @@ func (t *test) Test10(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 	}
 
 	if mytype_.Array[0] != "one" && mytype_.Array[1] != "two" && mytype_.Array[2] != "three" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if len(mytype_.Dictionary) != 2 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Dictionary["bar"] != "Bar" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if mytype_.Dictionary["foo"] != "Foo" {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	if len(mytype_.Stringset) != 3 {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	_, ok := mytype_.Stringset["one"]
+	if !ok {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	_, ok = mytype_.Stringset["two"]
+	if !ok {
+		return c.ReplyCertificationError(nil, nil)
+	}
+
+	_, ok = mytype_.Stringset["three"]
+	if !ok {
 		return c.ReplyCertificationError(nil, nil)
 	}
 
