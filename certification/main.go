@@ -402,7 +402,7 @@ func (t *test) Test10(c orgvarlinkcertification.VarlinkCall, client_id_ string, 
 			Map map[string]string `json:"map"`
 		} `json:"parameters"`
 	}
-	err := json.Unmarshal(mytype_.Object, o)
+	err := json.Unmarshal(mytype_.Object, &o)
 	if err != nil {
 		return err
 	}
