@@ -358,7 +358,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	b.WriteString("// Generated varlink interface description\n\n")
 
 	b.WriteString("func (s *VarlinkInterface) VarlinkGetDescription() string {\n" +
-		"\treturn `" + midl.Description + "\n`\n}\n\n")
+		"\treturn `" + strings.Replace(midl.Description, "`", "` + \"`\" + `", -1) + "\n`\n}\n\n")
 
 	b.WriteString("// Generated service interface\n\n")
 
