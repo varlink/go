@@ -78,6 +78,7 @@ func writeDocString(b *bytes.Buffer, s string) {
 		return
 	}
 
+	// Quote multi-line docstrings
 	b.WriteString("// " + strings.Replace(s, "\n", "\n// ", -1))
 	b.WriteString("\n")
 }
@@ -357,6 +358,7 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	b.WriteString("// Generated varlink interface description\n\n")
 
+	// Special-quote backtick, it cannot be part of a backtick-quoted string
 	b.WriteString("func (s *VarlinkInterface) VarlinkGetDescription() string {\n" +
 		"\treturn `" + strings.Replace(midl.Description, "`", "` + \"`\" + `", -1) + "\n`\n}\n\n")
 
