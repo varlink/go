@@ -224,7 +224,7 @@ func generateTemplate(description string) (string, []byte, error) {
 	}
 	b.WriteString("}\n\n")
 
-	b.WriteString("// Generated ervice object with all methods\n\n")
+	b.WriteString("// Generated service object with all methods\n\n")
 
 	b.WriteString("type VarlinkCall struct{ varlink.Call }\n\n")
 
@@ -263,7 +263,8 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("}\n\n")
 	}
 
-	b.WriteString("// Generated reply methods for all varlink methods\n")
+	b.WriteString("// Generated reply methods for all varlink methods\n\n")
+
 	for _, m := range midl.Methods {
 		b.WriteString("func (c *VarlinkCall) Reply" + m.Name + "(")
 		for i, field := range m.Out.Fields {
@@ -296,8 +297,10 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("}\n\n")
 	}
 
-	b.WriteString("// Generated dummy implementations for all varlink methods\n")
+	b.WriteString("// Generated dummy implementations for all varlink methods\n\n")
+
 	for _, m := range midl.Methods {
+		writeDocString(&b, m.Doc)
 		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_ ")
@@ -308,7 +311,8 @@ func generateTemplate(description string) (string, []byte, error) {
 			"}\n\n")
 	}
 
-	b.WriteString("// Generated method call dispatcher\n")
+	b.WriteString("// Generated method call dispatcher\n\n")
+
 	b.WriteString("func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {\n" +
 		"\tswitch methodname {\n")
 	for _, m := range midl.Methods {
