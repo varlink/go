@@ -1,0 +1,252 @@
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"github.com/TylerBrock/colorjson"
+	"github.com/fatih/color"
+	"github.com/varlink/go/varlink"
+	"os"
+	"strings"
+)
+
+var bold = color.New(color.Bold)
+var errorBoldRed = bold.Sprint(color.New(color.FgRed).Sprint("Error:"))
+
+func ErrPrintf(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, "%s ", errorBoldRed)
+	fmt.Fprintf(os.Stderr, format, a...)
+}
+
+func print_usage(set *flag.FlagSet, arg_help string) {
+	if set == nil {
+		fmt.Fprintf(os.Stderr, "Usage: %s [GLOBAL OPTIONS] COMMAND ...\n", os.Args[0])
+	} else {
+		fmt.Fprintf(os.Stderr, "Usage: %s [GLOBAL OPTIONS] %s [OPTIONS] %s\n", os.Args[0], set.Name(), arg_help)
+	}
+
+	fmt.Fprintln(os.Stderr, "\nGlobal Options:")
+	flag.PrintDefaults()
+
+	if set == nil {
+		fmt.Fprintln(os.Stderr, "\nCommands:")
+		fmt.Fprintln(os.Stderr, "  info\tPrint information about a service")
+		fmt.Fprintln(os.Stderr, "  help\tPrint interface description or service information")
+		fmt.Fprintln(os.Stderr, "  call\tCall a method")
+	} else {
+		fmt.Fprintln(os.Stderr, "\nOptions:")
+		set.PrintDefaults()
+	}
+	os.Exit(1)
+}
+
+func varlink_call(args []string, bridge string) {
+	var err error
+	var oneway bool
+
+	callFlags := flag.NewFlagSet("help", flag.ExitOnError)
+	callFlags.BoolVar(&oneway, "-oneway", false, "Use bridge for connection")
+	var help bool
+	callFlags.BoolVar(&help, "help", false, "Prints help information")
+	var usage = func() { print_usage(callFlags, "<[ADDRESS/]INTERFACE.METHOD> [ARGUMENTS]") }
+	callFlags.Usage = usage
+
+	_ = callFlags.Parse(args)
+
+	if help {
+		usage()
+	}
+
+	uri := callFlags.Arg(0)
+	if uri == "" {
+		usage()
+	}
+
+	li := strings.LastIndex(uri,"/")
+
+	if li == -1 {
+		ErrPrintf("Invalid address '%s': %v\n", uri)
+		os.Exit(2)
+	}
+
+	address := uri[:li]
+	methodName := uri[li+1:]
+
+	con, err := varlink.NewConnection(address)
+
+	if err != nil {
+		ErrPrintf("Cannot connect to '%s': %v\n", address, err)
+		os.Exit(2)
+	}
+
+	var parameters string
+	var params json.RawMessage
+
+	parameters = callFlags.Arg(1)
+	if parameters == "" {
+		params = nil
+	} else {
+		json.Unmarshal([]byte(parameters), &params)
+	}
+
+	var flags uint64
+	flags = 0
+	if oneway {
+		flags |= varlink.Oneway
+	}
+	recv, err := con.Send(methodName, params, flags)
+
+	var retval map[string]interface{}
+
+	// FIXME: Use cont
+	_, err = recv(&retval)
+
+	f := colorjson.NewFormatter()
+	f.Indent = 2
+	f.KeyColor = color.New(color.FgCyan)
+	f.StringColor = color.New(color.FgMagenta)
+	f.NumberColor = color.New(color.FgMagenta)
+	f.BoolColor = color.New(color.FgMagenta)
+	f.NullColor = color.New(color.FgMagenta)
+
+	if err != nil {
+		ErrPrintf("Error calling '%s': %v\n", methodName, err)
+		switch e := err.(type) {
+		case *varlink.Error:
+			println(e.Name)
+			errorRawParameters := e.Parameters.(*json.RawMessage)
+
+			if errorRawParameters == nil {
+				break
+			}
+			var param map[string]interface{}
+			_ = json.Unmarshal(*errorRawParameters, &param)
+			c, _ := f.Marshal(param)
+			ErrPrintf("%v\n", string(c))
+		}
+		os.Exit(2)
+	}
+	c, _ := f.Marshal(retval)
+	fmt.Println(string(c))
+}
+
+func varlink_help(args []string, bridge string) {
+	var err error
+
+	helpFlags := flag.NewFlagSet("help", flag.ExitOnError)
+	var help bool
+	helpFlags.BoolVar(&help, "help", false, "Prints help information")
+	var usage = func() { print_usage(helpFlags, "<[ADDRESS/]INTERFACE>") }
+	helpFlags.Usage = usage
+
+	_ = helpFlags.Parse(args)
+
+	if help {
+		usage()
+	}
+
+	uri := helpFlags.Arg(0)
+	if uri == ""  && bridge == "" {
+		ErrPrintf("No ADDRESS or activation or bridge\n\n")
+		usage()
+	}
+
+	li := strings.LastIndex(uri,"/")
+
+	if li == -1 {
+		ErrPrintf("Invalid address '%s': %v\n", uri)
+		os.Exit(2)
+	}
+
+	address := uri[:li]
+	interfaceName := uri[li+1:]
+
+	con, err := varlink.NewConnection(address)
+
+	if err != nil {
+		ErrPrintf("Cannot connect to '%s': %v\n", address, err)
+		os.Exit(2)
+	}
+
+
+	description, err := con.GetInterfaceDescription(interfaceName)
+
+	if err != nil {
+		ErrPrintf("Cannot get interface description for '%s': %v\n", interfaceName, err)
+		os.Exit(2)
+	}
+
+	fmt.Println(description)
+}
+
+func varlink_info(args []string, bridge string) {
+	var err error
+	infoFlags := flag.NewFlagSet("info", flag.ExitOnError)
+	var help bool
+	infoFlags.BoolVar(&help, "help", false, "Prints help information")
+	var usage = func() { print_usage(infoFlags, "[ADDRESS]") }
+	infoFlags.Usage = usage
+
+	_ = infoFlags.Parse(args)
+
+	if help {
+		usage()
+	}
+
+	address := infoFlags.Arg(0)
+
+	if address == "" && bridge == "" {
+		ErrPrintf("No ADDRESS or activation or bridge\n\n")
+		usage()
+	}
+
+	con, err := varlink.NewConnection(address)
+
+	if err != nil {
+		ErrPrintf("Cannot connect to '%s': %v\n",  address, err)
+		os.Exit(2)
+	}
+
+	var vendor, product, version, url string
+	var interfaces []string
+
+	err = con.GetInfo(&vendor, &product, &version, &url, &interfaces)
+
+	if err != nil {
+		ErrPrintf("Cannot get info for '%s': %v\n", address, err)
+		os.Exit(2)
+	}
+
+	fmt.Printf("%s %s\n", bold.Sprint("Vendor:"), vendor)
+	fmt.Printf("%s %s\n", bold.Sprint("Product:"), product)
+	fmt.Printf("%s %s\n", bold.Sprint("Version:"), version)
+	fmt.Printf("%s %s\n", bold.Sprint("URL:"), url)
+	fmt.Printf("%s\n  %s\n\n", bold.Sprint("Interfaces:"), strings.Join(interfaces[:], "\n  "))
+}
+
+func main() {
+	var debug bool
+	var bridge string
+
+	flag.CommandLine.Usage = func() { print_usage(nil, "") }
+	flag.BoolVar(&debug, "debug", false, "Enable debug output")
+	flag.StringVar(&bridge, "bridge", "", "Use bridge for connection")
+	flag.Parse()
+
+	if bridge != "" {
+		ErrPrintf("--bridge is not implemented yet, sorry!\n")
+		os.Exit(1)
+	}
+
+	switch flag.Arg(0) {
+	case "info":
+		varlink_info(flag.Args()[1:], bridge)
+	case "help":
+		varlink_help(flag.Args()[1:], bridge)
+	case "call":
+		varlink_call(flag.Args()[1:], bridge)
+	default:
+		print_usage(nil, "")
+	}
+}
