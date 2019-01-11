@@ -17,8 +17,14 @@ type PipeCon struct {
 }
 
 func (p PipeCon) Close() error {
-	p.reader = nil
-	p.writer = nil
+	err1 := (*p.reader).Close()
+	err2 := (*p.writer).Close()
+	if err1 != nil {
+		return err1
+	}
+	if err2 != nil {
+		return err2
+	}
 	return nil
 }
 
