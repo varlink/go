@@ -18,6 +18,7 @@ const (
 
 // Error is a varlink error returned from a method call.
 type Error struct {
+	error
 	Name       string
 	Parameters interface{}
 }
