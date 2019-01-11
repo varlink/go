@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 )
 
@@ -216,7 +217,31 @@ func NewConnection(address string) (*Connection, error) {
 	c := Connection{}
 	c.conn, err = net.Dial(protocol, addr)
 	if err != nil {
-		return nil, err
+		if neterr, ok :=  err.(*net.OpError); ok {
+			if neterr.Net == "unix" && strings.Contains(neterr.Err.Error(), "not supported") {
+				f, err := os.Open(addr)
+				if err != nil {
+					return nil, err
+				}
+				scanner := bufio.NewScanner(f)
+				var port string
+				for scanner.Scan() {
+					port = scanner.Text()
+					err = scanner.Err()
+					if err != nil {
+						return nil, err
+					}
+					break
+				}
+				f.Close()
+				fmt.Fprintf(os.Stderr, "System does not support AF_UNIX, connecting to insecure 127.0.0.1:%s\n", string(port))
+				c.conn, err = net.Dial("tcp", "127.0.0.1:" + string(port))
+			} else {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	c.address = address

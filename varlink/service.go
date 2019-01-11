@@ -186,12 +186,41 @@ func getListener(protocol string, address string) (net.Listener, error) {
 
 		var err error
 		l, err = net.Listen(protocol, address)
+
 		if err != nil {
-			return nil, err
+			if address[0] == '@' {
+				return nil, err
+			}
+
+			if neterr, ok :=  err.(*net.OpError); ok {
+				if neterr.Net == "unix" && strings.Contains(neterr.Err.Error(), "not supported") {
+					laddr := net.TCPAddr {IP:net.IPv4(127,0,0,1), Port: 0} // Port == 0 - free port
+					l, err = net.ListenTCP("tcp4", &laddr)
+					if err != nil {
+						return nil, err
+					}
+
+					port := l.Addr().(*net.TCPAddr).Port
+					fmt.Fprintf(os.Stderr, "System does not support AF_UNIX, binding to insecure 127.0.0.1:%v\n", port)
+
+					f, err := os.OpenFile(address, os.O_WRONLY|os.O_CREATE, 0660)
+					if err != nil {
+						return nil, err
+					}
+					fmt.Fprintf(f, "%v", port)
+					f.Close()
+				} else {
+					return nil, err
+				}
+			} else {
+				return nil, err
+			}
 		}
 
-		if protocol == "unix" && address[0] != '@' {
-			l.(*net.UnixListener).SetUnlinkOnClose(true)
+		if address[0] != '@' {
+			if ul, ok :=  l.(*net.UnixListener); ok {
+				ul.SetUnlinkOnClose(true)
+			}
 		}
 	}
 
