@@ -13,6 +13,7 @@ import (
 
 var bold = color.New(color.Bold)
 var errorBoldRed = bold.Sprint(color.New(color.FgRed).Sprint("Error:"))
+var bridge string
 
 func ErrPrintf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, "%s ", errorBoldRed)
@@ -41,7 +42,7 @@ func print_usage(set *flag.FlagSet, arg_help string) {
 	os.Exit(1)
 }
 
-func varlink_call(args []string, bridge string) {
+func varlink_call(args []string) {
 	var err error
 	var oneway bool
 
@@ -58,28 +59,42 @@ func varlink_call(args []string, bridge string) {
 		usage()
 	}
 
-	uri := callFlags.Arg(0)
-	if uri == "" {
-		usage()
+	var con *varlink.Connection
+	var address string
+	var methodName string
+
+	if len(bridge) != 0 {
+		con, err = varlink.NewBridge(bridge)
+
+		if err != nil {
+			ErrPrintf("Cannot connect with bridge '%s': %v\n", bridge, err)
+			os.Exit(2)
+		}
+		address = "bridge:" + bridge
+		methodName =  callFlags.Arg(0)
+	} else {
+		uri := callFlags.Arg(0)
+		if uri == "" {
+			usage()
+		}
+
+		li := strings.LastIndex(uri, "/")
+
+		if li == -1 {
+			ErrPrintf("Invalid address '%s'\n", uri)
+			os.Exit(2)
+		}
+
+		address = uri[:li]
+		methodName = uri[li+1:]
+
+		con, err = varlink.NewConnection(address)
+
+		if err != nil {
+			ErrPrintf("Cannot connect to '%s': %v\n", address, err)
+			os.Exit(2)
+		}
 	}
-
-	li := strings.LastIndex(uri,"/")
-
-	if li == -1 {
-		ErrPrintf("Invalid address '%s': %v\n", uri)
-		os.Exit(2)
-	}
-
-	address := uri[:li]
-	methodName := uri[li+1:]
-
-	con, err := varlink.NewConnection(address)
-
-	if err != nil {
-		ErrPrintf("Cannot connect to '%s': %v\n", address, err)
-		os.Exit(2)
-	}
-
 	var parameters string
 	var params json.RawMessage
 
@@ -131,7 +146,7 @@ func varlink_call(args []string, bridge string) {
 	fmt.Println(string(c))
 }
 
-func varlink_help(args []string, bridge string) {
+func varlink_help(args []string) {
 	var err error
 
 	helpFlags := flag.NewFlagSet("help", flag.ExitOnError)
@@ -146,30 +161,44 @@ func varlink_help(args []string, bridge string) {
 		usage()
 	}
 
-	uri := helpFlags.Arg(0)
-	if uri == ""  && bridge == "" {
-		ErrPrintf("No ADDRESS or activation or bridge\n\n")
-		usage()
+	var con *varlink.Connection
+	var address string
+	var interfaceName string
+
+	if len(bridge) != 0 {
+		con, err = varlink.NewBridge(bridge)
+
+		if err != nil {
+			ErrPrintf("Cannot connect with bridge '%s': %v\n", bridge, err)
+			os.Exit(2)
+		}
+		address = "bridge:" + bridge
+		interfaceName =  helpFlags.Arg(0)
+	} else {
+		uri := helpFlags.Arg(0)
+		if uri == "" && bridge == "" {
+			ErrPrintf("No ADDRESS or activation or bridge\n\n")
+			usage()
+		}
+
+		li := strings.LastIndex(uri, "/")
+
+		if li == -1 {
+			ErrPrintf("Invalid address '%s'\n", uri)
+			os.Exit(2)
+		}
+
+		address = uri[:li]
+
+		con, err = varlink.NewConnection(address)
+
+		if err != nil {
+			ErrPrintf("Cannot connect to '%s': %v\n", address, err)
+			os.Exit(2)
+		}
+
+		interfaceName = uri[li+1:]
 	}
-
-	li := strings.LastIndex(uri,"/")
-
-	if li == -1 {
-		ErrPrintf("Invalid address '%s': %v\n", uri)
-		os.Exit(2)
-	}
-
-	address := uri[:li]
-	interfaceName := uri[li+1:]
-
-	con, err := varlink.NewConnection(address)
-
-	if err != nil {
-		ErrPrintf("Cannot connect to '%s': %v\n", address, err)
-		os.Exit(2)
-	}
-
-
 	description, err := con.GetInterfaceDescription(interfaceName)
 
 	if err != nil {
@@ -180,7 +209,7 @@ func varlink_help(args []string, bridge string) {
 	fmt.Println(description)
 }
 
-func varlink_info(args []string, bridge string) {
+func varlink_info(args []string) {
 	var err error
 	infoFlags := flag.NewFlagSet("info", flag.ExitOnError)
 	var help bool
@@ -194,18 +223,31 @@ func varlink_info(args []string, bridge string) {
 		usage()
 	}
 
-	address := infoFlags.Arg(0)
+	var con *varlink.Connection
+	var address string
 
-	if address == "" && bridge == "" {
-		ErrPrintf("No ADDRESS or activation or bridge\n\n")
-		usage()
-	}
+	if len(bridge) != 0 {
+		con, err = varlink.NewBridge(bridge)
 
-	con, err := varlink.NewConnection(address)
+		if err != nil {
+			ErrPrintf("Cannot connect with bridge '%s': %v\n", bridge, err)
+			os.Exit(2)
+		}
+		address = "bridge:" + bridge
+	} else {
+		address = infoFlags.Arg(0)
 
-	if err != nil {
-		ErrPrintf("Cannot connect to '%s': %v\n",  address, err)
-		os.Exit(2)
+		if address == "" && bridge == "" {
+			ErrPrintf("No ADDRESS or activation or bridge\n\n")
+			usage()
+		}
+
+		con, err = varlink.NewConnection(address)
+
+		if err != nil {
+			ErrPrintf("Cannot connect to '%s': %v\n", address, err)
+			os.Exit(2)
+		}
 	}
 
 	var vendor, product, version, url string
@@ -227,25 +269,19 @@ func varlink_info(args []string, bridge string) {
 
 func main() {
 	var debug bool
-	var bridge string
 
 	flag.CommandLine.Usage = func() { print_usage(nil, "") }
 	flag.BoolVar(&debug, "debug", false, "Enable debug output")
 	flag.StringVar(&bridge, "bridge", "", "Use bridge for connection")
 	flag.Parse()
 
-	if bridge != "" {
-		ErrPrintf("--bridge is not implemented yet, sorry!\n")
-		os.Exit(1)
-	}
-
 	switch flag.Arg(0) {
 	case "info":
-		varlink_info(flag.Args()[1:], bridge)
+		varlink_info(flag.Args()[1:])
 	case "help":
-		varlink_help(flag.Args()[1:], bridge)
+		varlink_help(flag.Args()[1:])
 	case "call":
-		varlink_call(flag.Args()[1:], bridge)
+		varlink_call(flag.Args()[1:])
 	default:
 		print_usage(nil, "")
 	}
