@@ -6,6 +6,8 @@ go:
 install:
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
+- go get github.com/TylerBrock/colorjson
+- go get github.com/fatih/color
 script:
 - go generate ./...
 - '"$HOME/gopath/bin/goveralls" -v -show -service=travis-ci -repotoken "$COVERALLS_TOKEN"'
