@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -201,18 +199,17 @@ func getListener(protocol string, address string) (net.Listener, error) {
 }
 
 func (s *Service) refreshTimeout(timeout time.Duration) error {
-	switch s.protocol {
-	case "unix":
-		if err := s.listener.(*net.UnixListener).SetDeadline(time.Now().Add(timeout)); err != nil {
+	switch l := s.listener.(type) {
+	case *net.UnixListener:
+		if err:= l.SetDeadline(time.Now().Add(timeout)); err != nil {
+			return err
+		}
+	case *net.TCPListener:
+		if err:= l.SetDeadline(time.Now().Add(timeout)); err != nil {
 			return err
 		}
 
-	case "tcp":
-		if err := s.listener.(*net.TCPListener).SetDeadline(time.Now().Add(timeout)); err != nil {
-			return err
-		}
 	}
-
 	return nil
 }
 
