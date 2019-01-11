@@ -269,11 +269,18 @@ func varlink_info(args []string) {
 
 func main() {
 	var debug bool
+	var colorMode string
 
 	flag.CommandLine.Usage = func() { print_usage(nil, "") }
 	flag.BoolVar(&debug, "debug", false, "Enable debug output")
 	flag.StringVar(&bridge, "bridge", "", "Use bridge for connection")
+	flag.StringVar(&colorMode, "color", "auto", "colorize output [default: auto]  [possible values: on, off, auto]")
+
 	flag.Parse()
+
+	if colorMode != "on" && (os.Getenv("TERM") == "" || colorMode == "off") {
+		color.NoColor = true // disables colorized output
+	}
 
 	switch flag.Arg(0) {
 	case "info":
