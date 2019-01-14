@@ -114,11 +114,17 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 	b = append(b, 0)
 	_, err = c.writer.Write(b)
 	if err != nil {
+		if err == io.EOF {
+			return nil, io.ErrUnexpectedEOF
+		}
 		return nil, err
 	}
 
 	err = c.writer.Flush()
 	if err != nil {
+		if err == io.EOF {
+			return nil, io.ErrUnexpectedEOF
+		}
 		return nil, err
 	}
 
@@ -131,6 +137,9 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 
 		out, err := c.reader.ReadBytes('\x00')
 		if err != nil {
+			if err == io.EOF {
+				return 0, io.ErrUnexpectedEOF
+			}
 			return 0, err
 		}
 

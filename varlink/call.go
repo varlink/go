@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -47,9 +48,16 @@ func (c *Call) sendMessage(r *serviceReply) error {
 	b = append(b, 0)
 	_, e = c.writer.Write(b)
 	if e != nil {
+		if e == io.EOF {
+			return io.ErrUnexpectedEOF
+		}
 		return e
 	}
-	return c.writer.Flush()
+	e = c.writer.Flush()
+	if e == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return e
 }
 
 // Reply sends a reply to this method call.
