@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 )
@@ -74,6 +75,7 @@ func (e *Error) Error() string {
 
 // Connection is a connection from a client to a service.
 type Connection struct {
+	io.Closer
 	address string
 	conn    net.Conn
 	reader  *bufio.Reader
