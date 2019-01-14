@@ -19,9 +19,52 @@ const (
 
 // Error is a varlink error returned from a method call.
 type Error struct {
-	error
 	Name       string
 	Parameters interface{}
+}
+
+func (e *Error) DispatchError() error {
+	errorRawParameters := e.Parameters.(*json.RawMessage)
+
+	switch e.Name {
+	case "org.varlink.service.InterfaceNotFound":
+		var param InterfaceNotFound
+		if errorRawParameters != nil {
+			err := json.Unmarshal(*errorRawParameters, &param)
+			if err != nil {
+				return e
+			}
+		}
+		return &param
+	case "org.varlink.service.MethodNotFound":
+		var param MethodNotFound
+		if errorRawParameters != nil {
+			err := json.Unmarshal(*errorRawParameters, &param)
+			if err != nil {
+				return e
+			}
+		}
+		return &param
+	case "org.varlink.service.MethodNotImplemented":
+		var param MethodNotImplemented
+		if errorRawParameters != nil {
+			err := json.Unmarshal(*errorRawParameters, &param)
+			if err != nil {
+				return e
+			}
+		}
+		return &param
+	case "org.varlink.service.InvalidParameter":
+		var param InvalidParameter
+		if errorRawParameters != nil {
+			err := json.Unmarshal(*errorRawParameters, &param)
+			if err != nil {
+				return e
+			}
+		}
+		return &param
+	}
+	return e
 }
 
 // Error returns the fully-qualified varlink error name.
@@ -96,11 +139,11 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 		}
 
 		if m.Error != "" {
-			err = &Error{
+			e := &Error{
 				Name:       m.Error,
 				Parameters: m.Parameters,
 			}
-			return 0, err
+			return 0, e.DispatchError()
 		}
 
 		if m.Parameters != nil {
