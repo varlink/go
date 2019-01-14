@@ -50,7 +50,7 @@ type Service struct {
 }
 
 // ServiceTimoutError helps API users to special-case timeouts.
-type ServiceTimeoutError struct {}
+type ServiceTimeoutError struct{}
 
 func (ServiceTimeoutError) Error() string {
 	return "service timeout"
@@ -201,11 +201,11 @@ func getListener(protocol string, address string) (net.Listener, error) {
 func (s *Service) refreshTimeout(timeout time.Duration) error {
 	switch l := s.listener.(type) {
 	case *net.UnixListener:
-		if err:= l.SetDeadline(time.Now().Add(timeout)); err != nil {
+		if err := l.SetDeadline(time.Now().Add(timeout)); err != nil {
 			return err
 		}
 	case *net.TCPListener:
-		if err:= l.SetDeadline(time.Now().Add(timeout)); err != nil {
+		if err := l.SetDeadline(time.Now().Add(timeout)); err != nil {
 			return err
 		}
 

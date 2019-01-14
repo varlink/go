@@ -56,4 +56,3 @@ func NewBridge(bridge string) (*Connection, error) {
 
 	return &c, nil
 }
-
