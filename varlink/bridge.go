@@ -11,7 +11,7 @@ import (
 
 type PipeCon struct {
 	net.Conn
-	cmd *exec.Cmd
+	cmd    *exec.Cmd
 	reader *io.ReadCloser
 	writer *io.WriteCloser
 }
@@ -44,7 +44,7 @@ func NewBridge(bridge string) (*Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.conn = PipeCon{nil, cmd, &r, &w,}
+	c.conn = PipeCon{nil, cmd, &r, &w}
 	c.address = ""
 	c.reader = bufio.NewReader(r)
 	c.writer = bufio.NewWriter(w)
