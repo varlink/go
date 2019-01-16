@@ -271,11 +271,14 @@ func main() {
 
 	flag.CommandLine.Usage = func() { print_usage(nil, "") }
 	flag.BoolVar(&debug, "debug", false, "Enable debug output")
-	flag.StringVar(&bridge, "bridge", "", "Use bridge for connection")
+	flag.StringVar(&bridge, "bridge", "", "Use bridge for connection (default \"$VARLINK_BRIDGE\")")
 	flag.StringVar(&colorMode, "color", "auto", "colorize output [default: auto]  [possible values: on, off, auto]")
 
 	flag.Parse()
 
+	if bridge == "" {
+		bridge = os.Getenv("VARLINK_BRIDGE") // do it here, readable default above
+	}
 	if colorMode != "on" && (os.Getenv("TERM") == "" || colorMode == "off") {
 		color.NoColor = true // disables colorized output
 	}
