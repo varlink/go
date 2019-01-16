@@ -12,7 +12,7 @@ import (
 )
 
 var bold = color.New(color.Bold)
-var errorBoldRed = bold.Sprint(color.New(color.FgRed).Sprint("Error:"))
+var errorBoldRed string
 var bridge string
 
 func ErrPrintf(format string, a ...interface{}) {
@@ -279,6 +279,8 @@ func main() {
 	if colorMode != "on" && (os.Getenv("TERM") == "" || colorMode == "off") {
 		color.NoColor = true // disables colorized output
 	}
+
+	errorBoldRed = bold.Sprint(color.New(color.FgRed).Sprint("Error:"))
 
 	switch flag.Arg(0) {
 	case "info":
