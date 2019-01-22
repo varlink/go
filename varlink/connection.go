@@ -16,6 +16,7 @@ const (
 	More      = 1 << iota
 	Oneway    = 1 << iota
 	Continues = 1 << iota
+	Upgrade   = 1 << iota
 )
 
 // Error is a varlink error returned from a method call.
@@ -78,8 +79,8 @@ type Connection struct {
 	io.Closer
 	address string
 	conn    net.Conn
-	reader  *bufio.Reader
-	writer  *bufio.Writer
+	Reader  *bufio.Reader
+	Writer  *bufio.Writer
 }
 
 // Send sends a method call. It returns a receive() function which is called to retrieve the method reply.
@@ -91,6 +92,7 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 		Parameters interface{} `json:"parameters,omitempty"`
 		More       bool        `json:"more,omitempty"`
 		Oneway     bool        `json:"oneway,omitempty"`
+		Upgrade    bool        `json:"upgrade,omitempty"`
 	}
 
 	if (flags&More != 0) && (flags&Oneway != 0) {
@@ -100,11 +102,19 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 		}
 	}
 
+	if (flags&More != 0) && (flags&Upgrade != 0) {
+		return nil, &Error{
+			Name:       "org.varlink.InvalidParameter",
+			Parameters: "more",
+		}
+	}
+
 	m := call{
 		Method:     method,
 		Parameters: parameters,
 		More:       flags&More != 0,
 		Oneway:     flags&Oneway != 0,
+		Upgrade:    flags&Upgrade != 0,
 	}
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -112,7 +122,7 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 	}
 
 	b = append(b, 0)
-	_, err = c.writer.Write(b)
+	_, err = c.Writer.Write(b)
 	if err != nil {
 		if err == io.EOF {
 			return nil, io.ErrUnexpectedEOF
@@ -120,7 +130,7 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 		return nil, err
 	}
 
-	err = c.writer.Flush()
+	err = c.Writer.Flush()
 	if err != nil {
 		if err == io.EOF {
 			return nil, io.ErrUnexpectedEOF
@@ -135,7 +145,7 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 			Error      string           `json:"error"`
 		}
 
-		out, err := c.reader.ReadBytes('\x00')
+		out, err := c.Reader.ReadBytes('\x00')
 		if err != nil {
 			if err == io.EOF {
 				return 0, io.ErrUnexpectedEOF
@@ -274,8 +284,8 @@ func NewConnection(address string) (*Connection, error) {
 	}
 
 	c.address = address
-	c.reader = bufio.NewReader(c.conn)
-	c.writer = bufio.NewWriter(c.conn)
+	c.Reader = bufio.NewReader(c.conn)
+	c.Writer = bufio.NewWriter(c.conn)
 
 	return &c, nil
 }
