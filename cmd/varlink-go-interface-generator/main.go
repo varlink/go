@@ -114,7 +114,25 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("type " + a.Name + " ")
 		writeType(&b, a.Type, true, 0)
 		b.WriteString("\nfunc (e " + a.Name + ") Error() string {\n")
-		b.WriteString("\treturn \"" + midl.Name + "." + a.Name + "\"\n")
+		b.WriteString("\ts := \"" + midl.Name + "." + a.Name + "\"\n")
+		if len(a.Type.Fields) > 0 {
+			b.WriteString("\ts += fmt.Sprintf(\"(")
+			for i, f := range a.Type.Fields {
+				b.WriteString(strings.Title(f.Name) + ": %v")
+				if i != len(a.Type.Fields)-1 {
+					b.WriteString(", ")
+				}
+			}
+			b.WriteString(")\", ")
+			for i, f := range a.Type.Fields {
+				b.WriteString("e." + strings.Title(f.Name))
+				if i != len(a.Type.Fields)-1 {
+					b.WriteString(", ")
+				}
+			}
+			b.WriteString(")\n")
+		}
+		b.WriteString("\treturn s")
 		b.WriteString("}\n\n")
 	}
 
@@ -401,11 +419,14 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	ret_string := b.String()
 
+	imports := []string{"\"github.com/varlink/go/varlink\""}
 	if strings.Contains(ret_string, "json.RawMessage") {
-		ret_string = strings.Replace(ret_string, "@IMPORTS@", "import (\n\t\"github.com/varlink/go/varlink\"\n\t\"encoding/json\"\n)", 1)
-	} else {
-		ret_string = strings.Replace(ret_string, "@IMPORTS@", `import "github.com/varlink/go/varlink"`, 1)
+		imports = append(imports, "\"encoding/json\"")
 	}
+	if strings.Contains(ret_string, "fmt.Sprintf") {
+		imports = append(imports, "\"fmt\"")
+	}
+	ret_string = strings.Replace(ret_string, "@IMPORTS@", fmt.Sprintf("import (\n%s\n)", strings.Join(imports, "\n\t")), 1)
 
 	pretty, err := format.Source([]byte(ret_string))
 	if err != nil {
