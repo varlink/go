@@ -5,3 +5,6 @@
 [![Release](https://img.shields.io/github/release/golang-standards/project-layout.svg?style=flat-square)](https://github.com/varlink/go/varlink/releases/latest)
 
 # go/varlink
+
+This is an implementation of the varlink protocol in golang.
+An implementation of the varlink CLI tool in golang can be found on https://github.com/varlink/go-varlink-cmd
