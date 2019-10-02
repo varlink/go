@@ -4,11 +4,9 @@ go:
 - '1.10.x'
 - '1.11.x'
 - '1.12.x'
-install:
-- go get golang.org/x/tools/cmd/cover
+- '1.13.x'
+-install:
 - go get github.com/mattn/goveralls
-- go get github.com/TylerBrock/colorjson
-- go get github.com/fatih/color
 script:
 - go generate ./...
 - '"$HOME/gopath/bin/goveralls" -v -show -service=travis-ci -repotoken "$COVERALLS_TOKEN"'
