@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"net"
 	"sync"
 	"testing"
@@ -90,7 +89,7 @@ func TestBlockingWrite(t *testing.T) {
 	if err == nil {
 		t.Fatal("Unexpectedly did not error")
 	}
-	if !errors.Is(err, context.Canceled) {
+	if err != context.Canceled {
 		t.Fatalf("Got unexpected error: %T, %s", err, err)
 	}
 }
@@ -108,7 +107,7 @@ func TestBlockingRead(t *testing.T) {
 	if err == nil {
 		t.Fatal("Unexpectedly did not error")
 	}
-	if !errors.Is(err, context.Canceled) {
+	if err != context.Canceled {
 		t.Fatalf("Got unexpected error: %T, %s", err, err)
 	}
 }

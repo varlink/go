@@ -1,12 +1,14 @@
 package varlink
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"strings"
+
+	"github.com/varlink/go/varlink/internal/ctxio"
 )
 
 // Message flags for Send(). More indicates that the client accepts more than one method
@@ -78,15 +80,13 @@ func (e *Error) Error() string {
 type Connection struct {
 	io.Closer
 	address string
-	conn    net.Conn
-	Reader  *bufio.Reader
-	Writer  *bufio.Writer
+	conn    *ctxio.Conn
 }
 
 // Send sends a method call. It returns a receive() function which is called to retrieve the method reply.
-// If Send() is called with the `More`flag and the receive() function carries the `Continues` flag, receive()
+// If Send() is called with the `More` flag and the receive() function carries the `Continues` flag, receive()
 // can be called multiple times to retrieve multiple replies.
-func (c *Connection) Send(method string, parameters interface{}, flags uint64) (func(interface{}) (uint64, error), error) {
+func (c *Connection) Send(ctx context.Context, method string, parameters interface{}, flags uint64) (func(context.Context, interface{}) (uint64, error), error) {
 	type call struct {
 		Method     string      `json:"method"`
 		Parameters interface{} `json:"parameters,omitempty"`
@@ -122,7 +122,8 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 	}
 
 	b = append(b, 0)
-	_, err = c.Writer.Write(b)
+
+	_, err = c.conn.Write(ctx, b)
 	if err != nil {
 		if err == io.EOF {
 			return nil, io.ErrUnexpectedEOF
@@ -130,22 +131,14 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 		return nil, err
 	}
 
-	err = c.Writer.Flush()
-	if err != nil {
-		if err == io.EOF {
-			return nil, io.ErrUnexpectedEOF
-		}
-		return nil, err
-	}
-
-	receive := func(out_parameters interface{}) (uint64, error) {
+	receive := func(ctx context.Context, outParameters interface{}) (uint64, error) {
 		type reply struct {
 			Parameters *json.RawMessage `json:"parameters"`
 			Continues  bool             `json:"continues"`
 			Error      string           `json:"error"`
 		}
 
-		out, err := c.Reader.ReadBytes('\x00')
+		out, err := c.conn.ReadBytes(ctx, '\x00')
 		if err != nil {
 			if err == io.EOF {
 				return 0, io.ErrUnexpectedEOF
@@ -168,7 +161,7 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 		}
 
 		if m.Parameters != nil {
-			json.Unmarshal(*m.Parameters, out_parameters)
+			json.Unmarshal(*m.Parameters, outParameters)
 		}
 
 		if m.Continues {
@@ -182,18 +175,18 @@ func (c *Connection) Send(method string, parameters interface{}, flags uint64) (
 }
 
 // Call sends a method call and returns the method reply.
-func (c *Connection) Call(method string, parameters interface{}, out_parameters interface{}) error {
-	receive, err := c.Send(method, &parameters, 0)
+func (c *Connection) Call(ctx context.Context, method string, parameters interface{}, outParameters interface{}) error {
+	receive, err := c.Send(ctx, method, &parameters, 0)
 	if err != nil {
 		return err
 	}
 
-	_, err = receive(out_parameters)
+	_, err = receive(ctx, outParameters)
 	return err
 }
 
 // GetInterfaceDescription requests the interface description string from the service.
-func (c *Connection) GetInterfaceDescription(name string) (string, error) {
+func (c *Connection) GetInterfaceDescription(ctx context.Context, name string) (string, error) {
 	type request struct {
 		Interface string `json:"interface"`
 	}
@@ -202,7 +195,7 @@ func (c *Connection) GetInterfaceDescription(name string) (string, error) {
 	}
 
 	var r reply
-	err := c.Call("org.varlink.service.GetInterfaceDescription", request{Interface: name}, &r)
+	err := c.Call(ctx, "org.varlink.service.GetInterfaceDescription", request{Interface: name}, &r)
 	if err != nil {
 		return "", err
 	}
@@ -211,7 +204,7 @@ func (c *Connection) GetInterfaceDescription(name string) (string, error) {
 }
 
 // GetInfo requests information about the service.
-func (c *Connection) GetInfo(vendor *string, product *string, version *string, url *string, interfaces *[]string) error {
+func (c *Connection) GetInfo(ctx context.Context, vendor *string, product *string, version *string, url *string, interfaces *[]string) error {
 	type reply struct {
 		Vendor     string   `json:"vendor"`
 		Product    string   `json:"product"`
@@ -221,7 +214,7 @@ func (c *Connection) GetInfo(vendor *string, product *string, version *string, u
 	}
 
 	var r reply
-	err := c.Call("org.varlink.service.GetInfo", nil, &r)
+	err := c.Call(ctx, "org.varlink.service.GetInfo", nil, &r)
 	if err != nil {
 		return err
 	}
@@ -250,10 +243,10 @@ func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-// NewConnection returns a new connection to the given address.
-func NewConnection(address string) (*Connection, error) {
-	var err error
-
+// NewConnection returns a new connection to the given address. The context
+// is used when dialling. Once successfully connected, any expiration
+// of the context will not affect the connection.
+func NewConnection(ctx context.Context, address string) (*Connection, error) {
 	words := strings.SplitN(address, ":", 2)
 
 	if len(words) != 2 {
@@ -278,14 +271,14 @@ func NewConnection(address string) (*Connection, error) {
 	}
 
 	c := Connection{}
-	c.conn, err = net.Dial(protocol, addr)
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, protocol, addr)
 	if err != nil {
 		return nil, err
 	}
 
 	c.address = address
-	c.Reader = bufio.NewReader(c.conn)
-	c.Writer = bufio.NewWriter(c.conn)
+	c.conn = ctxio.NewConn(conn)
 
 	return &c, nil
 }

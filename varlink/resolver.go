@@ -1,5 +1,7 @@
 package varlink
 
+import "context"
+
 // ResolverAddress is the well-known address of the varlink interface resolver,
 // it translates varlink interface names to varlink service addresses.
 const ResolverAddress = "unix:/run/org.varlink.resolver"
@@ -11,7 +13,7 @@ type Resolver struct {
 }
 
 // Resolve resolves a varlink interface name to a varlink address.
-func (r *Resolver) Resolve(iface string) (string, error) {
+func (r *Resolver) Resolve(ctx context.Context, iface string) (string, error) {
 	type request struct {
 		Interface string `json:"interface"`
 	}
@@ -25,7 +27,7 @@ func (r *Resolver) Resolve(iface string) (string, error) {
 	}
 
 	var rep reply
-	err := r.conn.Call("org.varlink.resolver.Resolve", &request{Interface: iface}, &rep)
+	err := r.conn.Call(ctx, "org.varlink.resolver.Resolve", &request{Interface: iface}, &rep)
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +36,7 @@ func (r *Resolver) Resolve(iface string) (string, error) {
 }
 
 // GetInfo requests information about the resolver.
-func (r *Resolver) GetInfo(vendor *string, product *string, version *string, url *string, interfaces *[]string) error {
+func (r *Resolver) GetInfo(ctx context.Context, vendor *string, product *string, version *string, url *string, interfaces *[]string) error {
 	type reply struct {
 		Vendor     string
 		Product    string
@@ -44,7 +46,7 @@ func (r *Resolver) GetInfo(vendor *string, product *string, version *string, url
 	}
 
 	var rep reply
-	err := r.conn.Call("org.varlink.resolver.GetInfo", nil, &rep)
+	err := r.conn.Call(ctx, "org.varlink.resolver.GetInfo", nil, &rep)
 	if err != nil {
 		return err
 	}
@@ -74,12 +76,12 @@ func (r *Resolver) Close() error {
 }
 
 // NewResolver returns a new resolver connected to the given address.
-func NewResolver(address string) (*Resolver, error) {
+func NewResolver(ctx context.Context, address string) (*Resolver, error) {
 	if address == "" {
 		address = ResolverAddress
 	}
 
-	c, err := NewConnection(address)
+	c, err := NewConnection(ctx, address)
 	if err != nil {
 		return nil, err
 	}

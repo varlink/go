@@ -1,21 +1,22 @@
 package varlink
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 )
+
+type WriterContext interface {
+	Write(context.Context, []byte) (int, error)
+}
 
 // Call is a method call retrieved by a Service. The connection from the
 // client can be terminated by returning an error from the call instead
 // of sending a reply or error reply.
 type Call struct {
-	*bufio.Reader
-	*bufio.Writer
-	Conn      *net.Conn
+	Conn      WriterContext
 	Request   *[]byte
 	In        *serviceCall
 	Continues bool
@@ -45,35 +46,29 @@ func (c *Call) GetParameters(p interface{}) error {
 	return json.Unmarshal(*c.In.Parameters, p)
 }
 
-func (c *Call) sendMessage(r *serviceReply) error {
+func (c *Call) sendMessage(ctx context.Context, r *serviceReply) error {
 	if c.In.Oneway {
 		return nil
 	}
 
-	b, e := json.Marshal(r)
-	if e != nil {
-		return e
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
 	}
 
 	b = append(b, 0)
-	_, e = c.Writer.Write(b)
-	if e != nil {
-		if e == io.EOF {
-			return io.ErrUnexpectedEOF
-		}
-		return e
-	}
-	e = c.Writer.Flush()
-	if e == io.EOF {
+
+	_, err = c.Conn.Write(ctx, b)
+	if err == io.EOF {
 		return io.ErrUnexpectedEOF
 	}
-	return e
+	return err
 }
 
 // Reply sends a reply to this method call.
-func (c *Call) Reply(parameters interface{}) error {
+func (c *Call) Reply(ctx context.Context, parameters interface{}) error {
 	if !c.Continues {
-		return c.sendMessage(&serviceReply{
+		return c.sendMessage(ctx, &serviceReply{
 			Parameters: parameters,
 		})
 	}
@@ -82,14 +77,14 @@ func (c *Call) Reply(parameters interface{}) error {
 		return fmt.Errorf("call did not set more, it does not expect continues")
 	}
 
-	return c.sendMessage(&serviceReply{
+	return c.sendMessage(ctx, &serviceReply{
 		Continues:  true,
 		Parameters: parameters,
 	})
 }
 
 // ReplyError sends an error reply to this method call.
-func (c *Call) ReplyError(name string, parameters interface{}) error {
+func (c *Call) ReplyError(ctx context.Context, name string, parameters interface{}) error {
 	r := strings.LastIndex(name, ".")
 	if r <= 0 {
 		return fmt.Errorf("invalid error name")
@@ -97,7 +92,7 @@ func (c *Call) ReplyError(name string, parameters interface{}) error {
 	if name[:r] == "org.varlink.service" {
 		return fmt.Errorf("refused to send org.varlink.service errors")
 	}
-	return c.sendMessage(&serviceReply{
+	return c.sendMessage(ctx, &serviceReply{
 		Error:      name,
 		Parameters: parameters,
 	})

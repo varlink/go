@@ -3,17 +3,19 @@ package varlink_test
 // test with no internal access
 
 import (
-	"github.com/varlink/go/varlink"
+	"context"
 	"os"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/varlink/go/varlink"
 )
 
 type VarlinkInterface struct{}
 
-func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {
-	return call.ReplyMethodNotImplemented(methodname)
+func (s *VarlinkInterface) VarlinkDispatch(ctx context.Context, call varlink.Call, methodname string) error {
+	return call.ReplyMethodNotImplemented(ctx, methodname)
 }
 func (s *VarlinkInterface) VarlinkGetName() string {
 	return `org.example.test`
@@ -25,8 +27,8 @@ func (s *VarlinkInterface) VarlinkGetDescription() string {
 
 type VarlinkInterface2 struct{}
 
-func (s *VarlinkInterface2) VarlinkDispatch(call varlink.Call, methodname string) error {
-	return call.ReplyMethodNotImplemented(methodname)
+func (s *VarlinkInterface2) VarlinkDispatch(ctx context.Context, call varlink.Call, methodname string) error {
+	return call.ReplyMethodNotImplemented(ctx, methodname)
 }
 func (s *VarlinkInterface2) VarlinkGetName() string {
 	return `org.example.test2`
@@ -56,12 +58,15 @@ func TestRegisterService(t *testing.T) {
 		t.Fatal("Could register service twice")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer func() { service.Shutdown() }()
 
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:varlinkexternal_TestRegisterService", 0)
+		servererror <- service.Listen(ctx, "unix:varlinkexternal_TestRegisterService", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -96,10 +101,13 @@ func TestUnix(t *testing.T) {
 		t.Fatalf("RegisterInterface(): %v", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:varlinkexternal_TestUnix", 0)
+		servererror <- service.Listen(ctx, "unix:varlinkexternal_TestUnix", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -127,15 +135,18 @@ func TestInvalidAddress(t *testing.T) {
 		t.Fatalf("RegisterInterface(): %v", err)
 	}
 
-	if err = service.Listen("foo", 0); err == nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err = service.Listen(ctx, "foo", 0); err == nil {
 		t.Fatalf("service.Listen() should error")
 	}
 
-	if err = service.Listen("", 0); err == nil {
+	if err = service.Listen(ctx, "", 0); err == nil {
 		t.Fatalf("service.Listen() should error")
 	}
 
-	if err = service.Listen("unix", 0); err == nil {
+	if err = service.Listen(ctx, "unix", 0); err == nil {
 		t.Fatalf("service.Listen() should error")
 	}
 }
@@ -161,10 +172,13 @@ func TestAnonUnix(t *testing.T) {
 		t.Fatalf("RegisterInterface(): %v", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:@varlinkexternal_TestAnonUnix", 0)
+		servererror <- service.Listen(ctx, "unix:@varlinkexternal_TestAnonUnix", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
@@ -194,10 +208,13 @@ func TestListenFDSNotInt(t *testing.T) {
 	os.Setenv("LISTEN_FDS", "foo")
 	os.Setenv("LISTEN_PID", string(os.Getpid()))
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	servererror := make(chan error)
 
 	go func() {
-		servererror <- service.Listen("unix:varlinkexternal_TestListenFDSNotInt", 0)
+		servererror <- service.Listen(ctx, "unix:varlinkexternal_TestListenFDSNotInt", 0)
 	}()
 
 	time.Sleep(time.Second / 5)
