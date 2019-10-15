@@ -164,7 +164,7 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("type " + m.Name + "_methods struct{}\n")
 		b.WriteString("func " + m.Name + "() " + m.Name + "_methods { return " + m.Name + "_methods{} }\n\n")
 
-		b.WriteString("func (m " + m.Name + "_methods) Call(c *varlink.Connection")
+		b.WriteString("func (m " + m.Name + "_methods) Call(ctx context.Context, c *varlink.Connection")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_in_ ")
 			writeType(&b, field.Type, false, 1)
@@ -176,7 +176,7 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString(", ")
 		}
 		b.WriteString("err_ error) {\n")
-		b.WriteString("receive, err_ := m.Send(c, 0")
+		b.WriteString("receive, err_ := m.Send(ctx, c, 0")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_in_ ")
 		}
@@ -189,16 +189,16 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString(field.Name + "_out_ ")
 			b.WriteString(", ")
 		}
-		b.WriteString("_, err_ = receive()\n")
+		b.WriteString("_, err_ = receive(ctx)\n")
 		b.WriteString("\treturn\n" +
 			"}\n\n")
 
-		b.WriteString("func (m " + m.Name + "_methods) Send(c *varlink.Connection, flags uint64")
+		b.WriteString("func (m " + m.Name + "_methods) Send(ctx context.Context, c *varlink.Connection, flags uint64")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_in_ ")
 			writeType(&b, field.Type, false, 1)
 		}
-		b.WriteString(") (func() (")
+		b.WriteString(") (func(ctx context.Context) (")
 		for _, field := range m.Out.Fields {
 			writeType(&b, field.Type, false, 1)
 			b.WriteString(", ")
@@ -219,14 +219,14 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tin." + strings.Title(field.Name) + " = " + field.Name + "_in_\n")
 				}
 			}
-			b.WriteString("\treceive, err := c.Send(\"" + midl.Name + "." + m.Name + "\", in, flags)\n")
+			b.WriteString("\treceive, err := c.Send(ctx, \"" + midl.Name + "." + m.Name + "\", in, flags)\n")
 		} else {
-			b.WriteString("\treceive, err := c.Send(\"" + midl.Name + "." + m.Name + "\", nil, flags)\n")
+			b.WriteString("\treceive, err := c.Send(ctx, \"" + midl.Name + "." + m.Name + "\", nil, flags)\n")
 		}
 		b.WriteString("\tif err != nil {\n" +
 			"\t\treturn nil, err\n" +
 			"\t}\n")
-		b.WriteString("\treturn func() (")
+		b.WriteString("\treturn func(context.Context) (")
 		for _, field := range m.Out.Fields {
 			b.WriteString(field.Name + "_out_ ")
 			writeType(&b, field.Type, false, 3)
@@ -237,9 +237,9 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\t\tvar out ")
 			writeType(&b, m.Out, true, 2)
 			b.WriteString("\n")
-			b.WriteString("\t\tflags, err = receive(&out)\n")
+			b.WriteString("\t\tflags, err = receive(ctx, &out)\n")
 		} else {
-			b.WriteString("\t\tflags, err = receive(nil)\n")
+			b.WriteString("\t\tflags, err = receive(ctx, nil)\n")
 		}
 		b.WriteString("\t\tif err != nil {\n" +
 			"\t\t\terr = Dispatch_Error(err)\n" +
@@ -265,7 +265,7 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	b.WriteString("type " + pkgname + "Interface interface {\n")
 	for _, m := range midl.Methods {
-		b.WriteString("\t" + m.Name + "(c VarlinkCall")
+		b.WriteString("\t" + m.Name + "(ctx context.Context, c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_ ")
 			writeType(&b, field.Type, false, 1)
@@ -282,7 +282,7 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	for _, e := range midl.Errors {
 		writeDocString(&b, e.Doc)
-		b.WriteString("func (c *VarlinkCall) Reply" + e.Name + "(")
+		b.WriteString("func (c *VarlinkCall) Reply" + e.Name + "(ctx context.Context, ")
 		for i, field := range e.Type.Fields {
 			if i > 0 {
 				b.WriteString(", ")
@@ -305,14 +305,14 @@ func generateTemplate(description string) (string, []byte, error) {
 				}
 			}
 		}
-		b.WriteString("\treturn c.ReplyError(\"" + midl.Name + "." + e.Name + "\", &out)\n")
+		b.WriteString("\treturn c.ReplyError(ctx, \"" + midl.Name + "." + e.Name + "\", &out)\n")
 		b.WriteString("}\n\n")
 	}
 
 	b.WriteString("// Generated reply methods for all varlink methods\n\n")
 
 	for _, m := range midl.Methods {
-		b.WriteString("func (c *VarlinkCall) Reply" + m.Name + "(")
+		b.WriteString("func (c *VarlinkCall) Reply" + m.Name + "(ctx context.Context, ")
 		for i, field := range m.Out.Fields {
 			if i > 0 {
 				b.WriteString(", ")
@@ -336,9 +336,9 @@ func generateTemplate(description string) (string, []byte, error) {
 					b.WriteString("\tout." + strings.Title(field.Name) + " = " + field.Name + "_\n")
 				}
 			}
-			b.WriteString("\treturn c.Reply(&out)\n")
+			b.WriteString("\treturn c.Reply(ctx, &out)\n")
 		} else {
-			b.WriteString("\treturn c.Reply(nil)\n")
+			b.WriteString("\treturn c.Reply(ctx, nil)\n")
 		}
 		b.WriteString("}\n\n")
 	}
@@ -347,19 +347,19 @@ func generateTemplate(description string) (string, []byte, error) {
 
 	for _, m := range midl.Methods {
 		writeDocString(&b, m.Doc)
-		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(c VarlinkCall")
+		b.WriteString("func (s *VarlinkInterface) " + m.Name + "(ctx context.Context, c VarlinkCall")
 		for _, field := range m.In.Fields {
 			b.WriteString(", " + field.Name + "_ ")
 			writeType(&b, field.Type, false, 1)
 		}
 		b.WriteString(") error {\n" +
-			"\treturn c.ReplyMethodNotImplemented(\"" + midl.Name + "." + m.Name + "\")\n" +
+			"\treturn c.ReplyMethodNotImplemented(ctx, \"" + midl.Name + "." + m.Name + "\")\n" +
 			"}\n\n")
 	}
 
 	b.WriteString("// Generated method call dispatcher\n\n")
 
-	b.WriteString("func (s *VarlinkInterface) VarlinkDispatch(call varlink.Call, methodname string) error {\n" +
+	b.WriteString("func (s *VarlinkInterface) VarlinkDispatch(ctx context.Context, call varlink.Call, methodname string) error {\n" +
 		"\tswitch methodname {\n")
 	for _, m := range midl.Methods {
 		b.WriteString("\tcase \"" + m.Name + "\":\n")
@@ -369,9 +369,9 @@ func generateTemplate(description string) (string, []byte, error) {
 			b.WriteString("\n")
 			b.WriteString("\t\terr := call.GetParameters(&in)\n" +
 				"\t\tif err != nil {\n" +
-				"\t\t\treturn call.ReplyInvalidParameter(\"parameters\")\n" +
+				"\t\t\treturn call.ReplyInvalidParameter(ctx, \"parameters\")\n" +
 				"\t\t}\n")
-			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call}")
+			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(ctx, VarlinkCall{call}")
 			if len(m.In.Fields) > 0 {
 				for _, field := range m.In.Fields {
 					switch field.Type.Kind {
@@ -387,12 +387,12 @@ func generateTemplate(description string) (string, []byte, error) {
 			}
 			b.WriteString(")\n")
 		} else {
-			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(VarlinkCall{call})\n")
+			b.WriteString("\t\treturn s." + pkgname + "Interface." + m.Name + "(ctx, VarlinkCall{call})\n")
 		}
 		b.WriteString("\n")
 	}
 	b.WriteString("\tdefault:\n" +
-		"\t\treturn call.ReplyMethodNotFound(methodname)\n" +
+		"\t\treturn call.ReplyMethodNotFound(ctx, methodname)\n" +
 		"\t}\n" +
 		"}\n\n")
 
@@ -420,6 +420,9 @@ func generateTemplate(description string) (string, []byte, error) {
 	ret_string := b.String()
 
 	imports := []string{"\"github.com/varlink/go/varlink\""}
+	if strings.Contains(ret_string, "context.Context") {
+		imports = append(imports, "\"context\"")
+	}
 	if strings.Contains(ret_string, "json.RawMessage") {
 		imports = append(imports, "\"encoding/json\"")
 	}
