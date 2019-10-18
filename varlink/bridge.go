@@ -3,11 +3,12 @@
 package varlink
 
 import (
-	"bufio"
 	"io"
 	"net"
 	"os"
 	"os/exec"
+
+	"github.com/varlink/go/varlink/internal/ctxio"
 )
 
 type PipeCon struct {
@@ -33,8 +34,6 @@ func (p PipeCon) Close() error {
 
 // NewBridgeWithStderr returns a new connection with the given bridge.
 func NewBridgeWithStderr(bridge string, stderr io.Writer) (*Connection, error) {
-	//var err error
-
 	c := Connection{}
 	cmd := exec.Command("sh", "-c", bridge)
 	cmd.Stderr = stderr
@@ -46,10 +45,8 @@ func NewBridgeWithStderr(bridge string, stderr io.Writer) (*Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.conn = PipeCon{nil, cmd, &r, &w}
+	c.conn = ctxio.NewConn(PipeCon{nil, cmd, &r, &w})
 	c.address = ""
-	c.Reader = bufio.NewReader(r)
-	c.Writer = bufio.NewWriter(w)
 
 	err = cmd.Start()
 	if err != nil {

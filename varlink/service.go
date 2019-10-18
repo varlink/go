@@ -1,7 +1,7 @@
 package varlink
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -9,10 +9,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/varlink/go/varlink/internal/ctxio"
 )
 
 type dispatcher interface {
-	VarlinkDispatch(c Call, methodname string) error
+	VarlinkDispatch(ctx context.Context, c Call, methodname string) error
 	VarlinkGetName() string
 	VarlinkGetDescription() string
 }
@@ -50,31 +52,31 @@ type Service struct {
 	address      string
 }
 
-// ServiceTimoutError helps API users to special-case timeouts.
+// ServiceTimeoutError helps API users to special-case timeouts.
 type ServiceTimeoutError struct{}
 
 func (ServiceTimeoutError) Error() string {
 	return "service timeout"
 }
 
-func (s *Service) getInfo(c Call) error {
-	return c.replyGetInfo(s.vendor, s.product, s.version, s.url, s.names)
+func (s *Service) getInfo(ctx context.Context, c Call) error {
+	return c.replyGetInfo(ctx, s.vendor, s.product, s.version, s.url, s.names)
 }
 
-func (s *Service) getInterfaceDescription(c Call, name string) error {
+func (s *Service) getInterfaceDescription(ctx context.Context, c Call, name string) error {
 	if name == "" {
-		return c.ReplyInvalidParameter("interface")
+		return c.ReplyInvalidParameter(ctx, "interface")
 	}
 
 	description, ok := s.descriptions[name]
 	if !ok {
-		return c.ReplyInvalidParameter("interface")
+		return c.ReplyInvalidParameter(ctx, "interface")
 	}
 
-	return c.replyGetInterfaceDescription(description)
+	return c.replyGetInterfaceDescription(ctx, description)
 }
 
-func (s *Service) HandleMessage(conn *net.Conn, reader *bufio.Reader, writer *bufio.Writer, request []byte) error {
+func (s *Service) HandleMessage(ctx context.Context, conn WriterContext, request []byte) error {
 	var in serviceCall
 
 	err := json.Unmarshal(request, &in)
@@ -85,55 +87,55 @@ func (s *Service) HandleMessage(conn *net.Conn, reader *bufio.Reader, writer *bu
 
 	c := Call{
 		Conn:    conn,
-		Reader:  reader,
-		Writer:  writer,
 		In:      &in,
 		Request: &request,
 	}
 
 	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {
-		return c.ReplyInvalidParameter("method")
+		return c.ReplyInvalidParameter(ctx, "method")
 	}
 
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
 
 	if interfacename == "org.varlink.service" {
-		return s.orgvarlinkserviceDispatch(c, methodname)
+		return s.orgvarlinkserviceDispatch(ctx, c, methodname)
 	}
 
 	// Find the interface and method in our service
 	iface, ok := s.interfaces[interfacename]
 	if !ok {
-		return c.ReplyInterfaceNotFound(interfacename)
+		return c.ReplyInterfaceNotFound(ctx, interfacename)
 	}
 
-	return iface.VarlinkDispatch(c, methodname)
+	return iface.VarlinkDispatch(ctx, c, methodname)
 }
 
 // Shutdown shuts down the listener of a running service.
-func (s *Service) Shutdown() {
+func (s *Service) Shutdown() error {
 	s.running = false
 	s.mutex.Lock()
-	if s.listener != nil {
-		s.listener.Close()
+	defer s.mutex.Unlock()
+	if s.listener == nil {
+		return nil
 	}
-	s.mutex.Unlock()
+	return s.listener.Close()
 }
 
-func (s *Service) handleConnection(conn net.Conn, wg *sync.WaitGroup) {
+func (s *Service) handleConnection(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
 	defer func() { s.mutex.Lock(); s.conncounter--; s.mutex.Unlock(); wg.Done() }()
-	reader := bufio.NewReader(conn)
-	writer := bufio.NewWriter(conn)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	ctxConn := ctxio.NewConn(conn)
 
 	for {
-		request, err := reader.ReadBytes('\x00')
+		request, err := ctxConn.ReadBytes(ctx, '\x00')
 		if err != nil {
 			break
 		}
 
-		err = s.HandleMessage(&conn, reader, writer, request[:len(request)-1])
+		err = s.HandleMessage(ctx, ctxConn, request[:len(request)-1])
 		if err != nil {
 			// FIXME: report error
 			//fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
@@ -181,14 +183,14 @@ func (s *Service) parseAddress(address string) error {
 	return nil
 }
 
-func (s *Service) GetListener() (*net.Listener, error) {
+func (s *Service) GetListener() (net.Listener, error) {
 	s.mutex.Lock()
 	l := s.listener
 	s.mutex.Unlock()
-	return &l, nil
+	return l, nil
 }
 
-func (s *Service) setListener() error {
+func (s *Service) setListener(ctx context.Context) error {
 	l := activationListener()
 	if l == nil {
 		if s.protocol == "unix" && s.address[0] != '@' {
@@ -196,7 +198,7 @@ func (s *Service) setListener() error {
 		}
 
 		var err error
-		l, err = net.Listen(s.protocol, s.address)
+		l, err = listen(ctx, s.protocol, s.address)
 		if err != nil {
 			return err
 		}
@@ -214,22 +216,20 @@ func (s *Service) setListener() error {
 }
 
 func (s *Service) refreshTimeout(timeout time.Duration) error {
+	type setDeadliner interface {
+		SetDeadline(time.Time) error
+	}
 	switch l := s.listener.(type) {
-	case *net.UnixListener:
+	case setDeadliner:
 		if err := l.SetDeadline(time.Now().Add(timeout)); err != nil {
 			return err
 		}
-	case *net.TCPListener:
-		if err := l.SetDeadline(time.Now().Add(timeout)); err != nil {
-			return err
-		}
-
 	}
 	return nil
 }
 
-// Listen starts a Service.
-func (s *Service) Bind(address string) error {
+// Bind binds the service to an address.
+func (s *Service) Bind(ctx context.Context, address string) error {
 	s.mutex.Lock()
 	if s.running {
 		s.mutex.Unlock()
@@ -239,7 +239,7 @@ func (s *Service) Bind(address string) error {
 
 	s.parseAddress(address)
 
-	err := s.setListener()
+	err := s.setListener(ctx)
 	if err != nil {
 		return err
 	}
@@ -247,11 +247,11 @@ func (s *Service) Bind(address string) error {
 }
 
 // Listen starts a Service.
-func (s *Service) Listen(address string, timeout time.Duration) error {
+func (s *Service) Listen(ctx context.Context, address string, timeout time.Duration) error {
 	var wg sync.WaitGroup
 	defer func() { s.teardown(); wg.Wait() }()
 
-	err := s.Bind(address)
+	err := s.Bind(ctx, address)
 	if err != nil {
 		return err
 	}
@@ -287,14 +287,14 @@ func (s *Service) Listen(address string, timeout time.Duration) error {
 		s.conncounter++
 		s.mutex.Unlock()
 		wg.Add(1)
-		go s.handleConnection(conn, &wg)
+		go s.handleConnection(ctx, conn, &wg)
 	}
 
 	return nil
 }
 
-// Listen starts a Service.
-func (s *Service) DoListen(timeout time.Duration) error {
+// DoListen starts a Service.
+func (s *Service) DoListen(ctx context.Context, timeout time.Duration) error {
 	var wg sync.WaitGroup
 	defer func() { s.teardown(); wg.Wait() }()
 
@@ -336,7 +336,7 @@ func (s *Service) DoListen(timeout time.Duration) error {
 		s.conncounter++
 		s.mutex.Unlock()
 		wg.Add(1)
-		go s.handleConnection(conn, &wg)
+		go s.handleConnection(ctx, conn, &wg)
 	}
 
 	return nil

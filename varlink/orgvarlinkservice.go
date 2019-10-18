@@ -1,5 +1,7 @@
 package varlink
 
+import "context"
+
 // The requested interface was not found.
 type InterfaceNotFound struct {
 	Interface string `json:"interface"`
@@ -37,42 +39,42 @@ func (e InvalidParameter) Error() string {
 	return "org.varlink.service.InvalidParameter"
 }
 
-func doReplyError(c *Call, name string, parameters interface{}) error {
-	return c.sendMessage(&serviceReply{
+func doReplyError(ctx context.Context, c *Call, name string, parameters interface{}) error {
+	return c.sendMessage(ctx, &serviceReply{
 		Error:      name,
 		Parameters: parameters,
 	})
 }
 
-// ReplyInterfaceNotFound sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyInterfaceNotFound(interfaceA string) error {
+// ReplyInterfaceNotFound sends a org.varlink.service error reply to this method call
+func (c *Call) ReplyInterfaceNotFound(ctx context.Context, interfaceA string) error {
 	var out InterfaceNotFound
 	out.Interface = interfaceA
-	return doReplyError(c, "org.varlink.service.InterfaceNotFound", &out)
+	return doReplyError(ctx, c, "org.varlink.service.InterfaceNotFound", &out)
 }
 
-// ReplyMethodNotFound sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyMethodNotFound(method string) error {
+// ReplyMethodNotFound sends a org.varlink.service error reply to this method call
+func (c *Call) ReplyMethodNotFound(ctx context.Context, method string) error {
 	var out MethodNotFound
 	out.Method = method
-	return doReplyError(c, "org.varlink.service.MethodNotFound", &out)
+	return doReplyError(ctx, c, "org.varlink.service.MethodNotFound", &out)
 }
 
-// ReplyMethodNotImplemented sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyMethodNotImplemented(method string) error {
+// ReplyMethodNotImplemented sends a org.varlink.service error reply to this method call
+func (c *Call) ReplyMethodNotImplemented(ctx context.Context, method string) error {
 	var out MethodNotImplemented
 	out.Method = method
-	return doReplyError(c, "org.varlink.service.MethodNotImplemented", &out)
+	return doReplyError(ctx, c, "org.varlink.service.MethodNotImplemented", &out)
 }
 
-// ReplyInvalidParameter sends a org.varlink.service errror reply to this method call
-func (c *Call) ReplyInvalidParameter(parameter string) error {
+// ReplyInvalidParameter sends a org.varlink.service error reply to this method call
+func (c *Call) ReplyInvalidParameter(ctx context.Context, parameter string) error {
 	var out InvalidParameter
 	out.Parameter = parameter
-	return doReplyError(c, "org.varlink.service.InvalidParameter", &out)
+	return doReplyError(ctx, c, "org.varlink.service.InvalidParameter", &out)
 }
 
-func (c *Call) replyGetInfo(vendor string, product string, version string, url string, interfaces []string) error {
+func (c *Call) replyGetInfo(ctx context.Context, vendor string, product string, version string, url string, interfaces []string) error {
 	var out struct {
 		Vendor     string   `json:"vendor,omitempty"`
 		Product    string   `json:"product,omitempty"`
@@ -85,37 +87,37 @@ func (c *Call) replyGetInfo(vendor string, product string, version string, url s
 	out.Version = version
 	out.URL = url
 	out.Interfaces = interfaces
-	return c.Reply(&out)
+	return c.Reply(ctx, &out)
 }
 
-func (c *Call) replyGetInterfaceDescription(description string) error {
+func (c *Call) replyGetInterfaceDescription(ctx context.Context, description string) error {
 	var out struct {
 		Description string `json:"description,omitempty"`
 	}
 	out.Description = description
-	return c.Reply(&out)
+	return c.Reply(ctx, &out)
 }
 
-func (s *Service) orgvarlinkserviceDispatch(c Call, methodname string) error {
+func (s *Service) orgvarlinkserviceDispatch(ctx context.Context, c Call, methodname string) error {
 	switch methodname {
 	case "GetInfo":
-		return s.getInfo(c)
+		return s.getInfo(ctx, c)
 	case "GetInterfaceDescription":
 		var in struct {
 			Interface string `json:"interface"`
 		}
 		err := c.GetParameters(&in)
 		if err != nil {
-			return c.ReplyInvalidParameter("parameters")
+			return c.ReplyInvalidParameter(ctx, "parameters")
 		}
-		return s.getInterfaceDescription(c, in.Interface)
+		return s.getInterfaceDescription(ctx, c, in.Interface)
 
 	default:
-		return c.ReplyMethodNotFound(methodname)
+		return c.ReplyMethodNotFound(ctx, methodname)
 	}
 }
 
-func (s *orgvarlinkserviceInterface) VarlinkDispatch(call Call, methodname string) error {
+func (s *orgvarlinkserviceInterface) VarlinkDispatch(ctx context.Context, call Call, methodname string) error {
 	return nil
 }
 
