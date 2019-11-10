@@ -259,6 +259,75 @@ func generateTemplate(description string) (string, []byte, error) {
 		b.WriteString("\t\treturn\n" +
 			"\t}, nil\n")
 		b.WriteString("}\n\n")
+
+		b.WriteString("func (m " + m.Name + "_methods) Upgrade(ctx context.Context, c *varlink.Connection")
+		for _, field := range m.In.Fields {
+			b.WriteString(", " + field.Name + "_in_ ")
+			writeType(&b, field.Type, false, 1)
+		}
+		b.WriteString(") (func(ctx context.Context) (")
+		for _, field := range m.Out.Fields {
+			b.WriteString(field.Name + "_out_ ")
+			writeType(&b, field.Type, false, 1)
+			b.WriteString(", ")
+		}
+		b.WriteString("flags uint64, conn varlink.ReadWriterContext, err_ error), error) {\n")
+		if len(m.In.Fields) > 0 {
+			b.WriteString("\tvar in ")
+			writeType(&b, m.In, true, 1)
+			b.WriteString("\n")
+			for _, field := range m.In.Fields {
+				switch field.Type.Kind {
+				case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
+					b.WriteString("\tin." + strings.Title(field.Name) + " = ")
+					writeType(&b, field.Type, true, 1)
+					b.WriteString("(" + field.Name + "_in_)\n")
+
+				default:
+					b.WriteString("\tin." + strings.Title(field.Name) + " = " + field.Name + "_in_\n")
+				}
+			}
+			b.WriteString("\treceive, err := c.Upgrade(ctx, \"" + midl.Name + "." + m.Name + "\", in)\n")
+		} else {
+			b.WriteString("\treceive, err := c.Upgrade(ctx, \"" + midl.Name + "." + m.Name + "\", nil)\n")
+		}
+		b.WriteString("if err != nil {\n" +
+			"\treturn nil, err\n" +
+			"}\n")
+		b.WriteString("\t")
+		b.WriteString("\treturn func(context.Context) (")
+		for _, field := range m.Out.Fields {
+			b.WriteString(field.Name + "_out_ ")
+			writeType(&b, field.Type, false, 3)
+			b.WriteString(", ")
+		}
+		b.WriteString("flags uint64, conn varlink.ReadWriterContext, err error) {\n")
+		if len(m.Out.Fields) > 0 {
+			b.WriteString("\t\tvar out ")
+			writeType(&b, m.Out, true, 2)
+			b.WriteString("\n")
+			b.WriteString("\t\tflags, conn, err = receive(ctx, &out)\n")
+		} else {
+			b.WriteString("\t\tflags, conn, err = receive(ctx, nil)\n")
+		}
+		b.WriteString("\t\tif err != nil {\n" +
+			"\t\t\terr = Dispatch_Error(err)\n" +
+			"\t\t\treturn\n" +
+			"\t\t}\n")
+		for _, field := range m.Out.Fields {
+			b.WriteString("\t\t" + field.Name + "_out_ = ")
+			switch field.Type.Kind {
+			case idl.TypeStruct, idl.TypeArray, idl.TypeMap:
+				writeType(&b, field.Type, false, 2)
+				b.WriteString("(out." + strings.Title(field.Name) + ")\n")
+
+			default:
+				b.WriteString("out." + strings.Title(field.Name) + "\n")
+			}
+		}
+		b.WriteString("\t\treturn\n" +
+			"\t}, nil\n")
+		b.WriteString("}\n\n")
 	}
 
 	b.WriteString("// Generated service interface with all methods\n\n")
