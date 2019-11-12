@@ -76,11 +76,10 @@ func (s *Service) getInterfaceDescription(ctx context.Context, c Call, name stri
 	return c.replyGetInterfaceDescription(ctx, description)
 }
 
-func (s *Service) HandleMessage(ctx context.Context, conn WriterContext, request []byte) error {
+func (s *Service) HandleMessage(ctx context.Context, conn ReadWriterContext, request []byte) error {
 	var in serviceCall
 
 	err := json.Unmarshal(request, &in)
-
 	if err != nil {
 		return err
 	}
@@ -138,7 +137,7 @@ func (s *Service) handleConnection(ctx context.Context, conn net.Conn, wg *sync.
 		err = s.HandleMessage(ctx, ctxConn, request[:len(request)-1])
 		if err != nil {
 			// FIXME: report error
-			//fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
+			// fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
 			break
 		}
 	}

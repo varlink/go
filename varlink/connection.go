@@ -79,7 +79,7 @@ func (e *Error) Error() string {
 // ReadWriterContext describes the capabilities of the
 // underlying varlink connection.
 type ReadWriterContext interface {
-	WriterContext
+	Write(context.Context, []byte) (int, error)
 	Read(context.Context, []byte) (int, error)
 	ReadBytes(ctx context.Context, delim byte) ([]byte, error)
 }
