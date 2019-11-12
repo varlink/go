@@ -76,6 +76,14 @@ func (e *Error) Error() string {
 	return e.Name
 }
 
+// ReadWriterContext describes the capabilities of the
+// underlying varlink connection.
+type ReadWriterContext interface {
+	Write(context.Context, []byte) (int, error)
+	Read(context.Context, []byte) (int, error)
+	ReadBytes(ctx context.Context, delim byte) ([]byte, error)
+}
+
 // Connection is a connection from a client to a service.
 type Connection struct {
 	io.Closer
@@ -236,6 +244,24 @@ func (c *Connection) GetInfo(ctx context.Context, vendor *string, product *strin
 	}
 
 	return nil
+}
+
+// Upgrade attempts to upgrade the connection using the provided method and parameters.
+// If successful, the connection cannot be reused later, and must be closed.
+func (c *Connection) Upgrade(ctx context.Context, method string, parameters interface{}) (func(context.Context, interface{}) (uint64, ReadWriterContext, error), error) {
+	reply, err := c.Send(ctx, method, parameters, Upgrade)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(ctx context.Context, out interface{}) (uint64, ReadWriterContext, error) {
+		flags, err := reply(ctx, out)
+		if err != nil {
+			return 0, nil, err
+		}
+
+		return flags, c.conn, nil
+	}, nil
 }
 
 // Close terminates the connection.

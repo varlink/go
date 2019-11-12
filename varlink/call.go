@@ -8,15 +8,11 @@ import (
 	"strings"
 )
 
-type WriterContext interface {
-	Write(context.Context, []byte) (int, error)
-}
-
 // Call is a method call retrieved by a Service. The connection from the
 // client can be terminated by returning an error from the call instead
 // of sending a reply or error reply.
 type Call struct {
-	Conn      WriterContext
+	Conn      ReadWriterContext
 	Request   *[]byte
 	In        *serviceCall
 	Continues bool

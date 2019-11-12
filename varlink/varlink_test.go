@@ -17,10 +17,18 @@ func expect(t *testing.T, expected string, returned string) {
 	}
 }
 
-type writerContextFunc func(context.Context, []byte) (int, error)
+type readWriterContextFunc func(context.Context, []byte) (int, error)
 
-func (wcf writerContextFunc) Write(ctx context.Context, in []byte) (int, error) {
+func (wcf readWriterContextFunc) Write(ctx context.Context, in []byte) (int, error) {
 	return wcf(ctx, in)
+}
+
+func (wcf readWriterContextFunc) Read(context.Context, []byte) (int, error) {
+	return 0, nil
+}
+
+func (wcf readWriterContextFunc) ReadBytes(context.Context, byte) ([]byte, error) {
+	return nil, nil
 }
 
 func TestService(t *testing.T) {
@@ -32,7 +40,7 @@ func TestService(t *testing.T) {
 	)
 
 	t.Run("ZeroMessage", func(t *testing.T) {
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			return 0, nil
 		})
 		if err := service.HandleMessage(context.Background(), wf, []byte{0}); err == nil {
@@ -41,7 +49,7 @@ func TestService(t *testing.T) {
 	})
 
 	t.Run("InvalidJson", func(t *testing.T) {
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			return 0, nil
 		})
 		msg := []byte(`{"method":"foo.GetInterfaceDescription" fdgdfg}`)
@@ -52,7 +60,7 @@ func TestService(t *testing.T) {
 
 	t.Run("WrongInterface", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -65,7 +73,7 @@ func TestService(t *testing.T) {
 	})
 	t.Run("InvalidMethod", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -79,7 +87,7 @@ func TestService(t *testing.T) {
 
 	t.Run("WrongMethod", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -93,7 +101,7 @@ func TestService(t *testing.T) {
 
 	t.Run("GetInterfaceDescriptionNullParameters", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -107,7 +115,7 @@ func TestService(t *testing.T) {
 
 	t.Run("GetInterfaceDescriptionNoInterface", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -121,7 +129,7 @@ func TestService(t *testing.T) {
 
 	t.Run("GetInterfaceDescriptionWrongInterface", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -135,7 +143,7 @@ func TestService(t *testing.T) {
 
 	t.Run("GetInterfaceDescription", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -149,7 +157,7 @@ func TestService(t *testing.T) {
 
 	t.Run("GetInfo", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -206,6 +214,7 @@ func (s *VarlinkInterface) VarlinkDispatch(ctx context.Context, call Call, metho
 
 	return call.ReplyMethodNotImplemented(ctx, methodname)
 }
+
 func (s *VarlinkInterface) VarlinkGetName() string {
 	return `org.example.test`
 }
@@ -230,7 +239,7 @@ func TestMoreService(t *testing.T) {
 
 	t.Run("MethodNotImplemented", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -244,7 +253,7 @@ func TestMoreService(t *testing.T) {
 
 	t.Run("PingError", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
@@ -257,7 +266,7 @@ func TestMoreService(t *testing.T) {
 	})
 	t.Run("MoreTest", func(t *testing.T) {
 		var written []byte
-		wf := writerContextFunc(func(ctx context.Context, in []byte) (int, error) {
+		wf := readWriterContextFunc(func(ctx context.Context, in []byte) (int, error) {
 			written = append(written, in...)
 			return len(in), nil
 		})
