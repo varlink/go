@@ -7,20 +7,50 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/varlink/go/varlink/internal/ctxio"
 )
 
+var _ net.Conn = &PipeCon{}
+
 type PipeCon struct {
-	net.Conn
 	cmd    *exec.Cmd
-	reader *io.ReadCloser
-	writer *io.WriteCloser
+	reader io.ReadCloser
+	writer io.WriteCloser
+}
+
+func (p PipeCon) Read(b []byte) (n int, err error) {
+	return p.reader.Read(b)
+}
+
+func (p PipeCon) Write(b []byte) (n int, err error) {
+	return p.writer.Write(b)
+}
+
+func (p PipeCon) LocalAddr() net.Addr {
+	panic("implement me")
+}
+
+func (p PipeCon) RemoteAddr() net.Addr {
+	panic("implement me")
+}
+
+func (p PipeCon) SetDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (p PipeCon) SetReadDeadline(t time.Time) error {
+	return nil
+}
+
+func (p PipeCon) SetWriteDeadline(t time.Time) error {
+	return nil
 }
 
 func (p PipeCon) Close() error {
-	err1 := (*p.reader).Close()
-	err2 := (*p.writer).Close()
+	err1 := (p.reader).Close()
+	err2 := (p.writer).Close()
 	if err1 != nil {
 		return err1
 	}
@@ -45,7 +75,7 @@ func NewBridgeWithStderr(bridge string, stderr io.Writer) (*Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.conn = ctxio.NewConn(PipeCon{nil, cmd, &r, &w})
+	c.conn = ctxio.NewConn(PipeCon{cmd, r, w})
 	c.address = ""
 
 	err = cmd.Start()
