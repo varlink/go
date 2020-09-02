@@ -1,5 +1,3 @@
-// +build !windows
-
 package varlink
 
 import (
@@ -8,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"time"
-
-	"github.com/varlink/go/varlink/internal/ctxio"
 )
 
 var _ net.Conn = &PipeCon{}
@@ -60,30 +56,6 @@ func (p PipeCon) Close() error {
 	p.cmd.Wait()
 
 	return nil
-}
-
-// NewBridgeWithStderr returns a new connection with the given bridge.
-func NewBridgeWithStderr(bridge string, stderr io.Writer) (*Connection, error) {
-	c := Connection{}
-	cmd := exec.Command("sh", "-c", bridge)
-	cmd.Stderr = stderr
-	r, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	w, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, err
-	}
-	c.conn = ctxio.NewConn(PipeCon{cmd, r, w})
-	c.address = ""
-
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	return &c, nil
 }
 
 // NewBridge returns a new connection with the given bridge.
