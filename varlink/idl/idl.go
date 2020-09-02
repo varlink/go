@@ -104,7 +104,7 @@ func (p *parser) advance() bool {
 			p.lineStart = p.position
 			p.lastComment.Reset()
 
-		} else if char == ' ' || char == '\t' {
+		} else if char == ' ' || char == '\t' || char == '\r' {
 			// ignore
 
 		} else if char == '#' {
