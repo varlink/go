@@ -30,8 +30,11 @@ jobs:
             dep ensure
         fi
 
+    - name: Generate
+      run: go generate cmd/varlink-go-certification/orgvarlinkcertification/generate.go
+
     - name: Build
-      run: go build -v .
+      run: go build -v ./...
 
     - name: Test
-      run: go test -v .
+      run: go test -v ./...
