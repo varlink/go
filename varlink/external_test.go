@@ -4,6 +4,7 @@ package varlink_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime"
 	"testing"
@@ -206,7 +207,7 @@ func TestListenFDSNotInt(t *testing.T) {
 		t.Fatalf("Couldn't register service: %v", err)
 	}
 	os.Setenv("LISTEN_FDS", "foo")
-	os.Setenv("LISTEN_PID", string(os.Getpid()))
+	os.Setenv("LISTEN_PID", fmt.Sprint(os.Getpid()))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
