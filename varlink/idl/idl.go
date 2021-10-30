@@ -158,7 +158,7 @@ func (p *parser) readKeyword() string {
 
 func (p *parser) readInterfaceName() string {
 	start := p.position
-	dnrx := regexp.MustCompile(`^[a-z]+(\.[a-z0-9]+([-][a-z0-9]+)*)+`)
+	dnrx := regexp.MustCompile(`^[a-zA-Z]+(\.[a-zA-Z0-9]+([-][a-zA-Z0-9]+)*)+`)
 	name := dnrx.FindString(p.input[start:])
 	if name != "" {
 		if len(name) > 255 {
