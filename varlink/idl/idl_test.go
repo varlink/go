@@ -50,10 +50,10 @@ func TestDomainNames(t *testing.T) {
 	testParse(t, true, "interface xn--lgbbat1ad8j.example.algeria\nmethod F()->()")
 	testParse(t, false, "interface com.-example.leadinghyphen\nmethod F()->()")
 	testParse(t, false, "interface com.example-.danglinghyphen-\nmethod F()->()")
-	testParse(t, false, "interface Com.example.uppercase-toplevel\nmethod F()->()")
+	testParse(t, true, "interface Com.example.uppercase-toplevel\nmethod F()->()")
 	testParse(t, false, "interface Co9.example.number-toplevel\nmethod F()->()")
 	testParse(t, false, "interface 1om.example.number-toplevel\nmethod F()->()")
-	testParse(t, false, "interface com.Example\nmethod F()->()")
+	testParse(t, true, "interface com.Example\nmethod F()->()")
 	var name string
 	for i := 0; i < 255; i++ {
 		name += "a"
