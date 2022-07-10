@@ -35,6 +35,10 @@ type rret struct {
 // immediately time out.
 var aLongTimeAgo = time.Unix(1, 0)
 
+func (c *Conn) NetConn() net.Conn {
+	return c.conn
+}
+
 // Close releases the Conns resources.
 func (c *Conn) Close() error {
 	return c.conn.Close()

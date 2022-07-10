@@ -84,6 +84,13 @@ type ReadWriterContext interface {
 	ReadBytes(ctx context.Context, delim byte) ([]byte, error)
 }
 
+// GetNetConn allows access to the underlying net.Conn (where one exists)
+// You shouldn't use this for I/O - but might use it to do things like access
+// peer credentials on a unix socket
+type GetNetConn interface {
+	NetConn() net.Conn
+}
+
 // Connection is a connection from a client to a service.
 type Connection struct {
 	io.Closer
