@@ -301,17 +301,21 @@ func NewConnection(ctx context.Context, address string) (*Connection, error) {
 
 	case "tcp":
 		break
+
+	default:
+		return nil, fmt.Errorf("unknown protocol %s", protocol)
 	}
 
-	c := Connection{}
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, protocol, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	c.address = address
-	c.conn = ctxio.NewConn(conn)
+	c := Connection{
+		address: address,
+		conn:    ctxio.NewConn(conn),
+	}
 
 	return &c, nil
 }
