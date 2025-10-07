@@ -1,4 +1,4 @@
-// +build !windows
+//go:build !windows
 
 package varlink
 
@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 func activationListener() net.Listener {
@@ -51,9 +50,9 @@ func activationListener() net.Listener {
 		fd = 3
 	}
 
-	syscall.CloseOnExec(fd)
-
 	file := os.NewFile(uintptr(fd), "varlink")
+	defer file.Close()
+
 	listener, err := net.FileListener(file)
 	if err != nil {
 		return nil
