@@ -91,6 +91,13 @@ type GetNetConn interface {
 	NetConn() net.Conn
 }
 
+// ContextDialer is an interface for network dialers that support context-aware dialing.
+// The standard *net.Dialer implements this interface. Custom implementations can be used
+// to dial through proxies, SSH tunnels, or with custom network configurations.
+type ContextDialer interface {
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}
+
 // Connection is a connection from a client to a service.
 type Connection struct {
 	io.Closer
@@ -280,6 +287,36 @@ func (c *Connection) Close() error {
 // is used when dialling. Once successfully connected, any expiration
 // of the context will not affect the connection.
 func NewConnection(ctx context.Context, address string) (*Connection, error) {
+	return newConnectionWithDialer(ctx, address, &net.Dialer{})
+}
+
+// NewConnectionWithDialer returns a new connection to the given address using a custom dialer.
+// The dialer parameter allows using custom network configurations such as:
+//   - Dialing through SOCKS or HTTP proxies
+//   - Custom timeout and keepalive settings
+//   - Dialing through SSH tunnels
+//   - Custom DNS resolution
+//
+// The context is used when dialling. Once successfully connected, any expiration
+// of the context will not affect the connection.
+//
+// Example with custom timeout:
+//
+//	dialer := &net.Dialer{
+//		Timeout:   30 * time.Second,
+//		KeepAlive: 30 * time.Second,
+//	}
+//	conn, err := varlink.NewConnectionWithDialer(ctx, "tcp:localhost:8080", dialer)
+func NewConnectionWithDialer(ctx context.Context, address string, dialer ContextDialer) (*Connection, error) {
+	if dialer == nil {
+		return nil, fmt.Errorf("dialer cannot be nil")
+	}
+	return newConnectionWithDialer(ctx, address, dialer)
+}
+
+// newConnectionWithDialer is the private implementation used by both NewConnection
+// and NewConnectionWithDialer.
+func newConnectionWithDialer(ctx context.Context, address string, dialer ContextDialer) (*Connection, error) {
 	words := strings.SplitN(address, ":", 2)
 
 	if len(words) != 2 {
@@ -306,8 +343,7 @@ func NewConnection(ctx context.Context, address string) (*Connection, error) {
 		return nil, fmt.Errorf("unknown protocol %s", protocol)
 	}
 
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, protocol, addr)
+	conn, err := dialer.DialContext(ctx, protocol, addr)
 	if err != nil {
 		return nil, err
 	}
