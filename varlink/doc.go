@@ -59,5 +59,46 @@ Service implementing the interface and its method:
 
 	service.RegisterInterface(orgexamplethis.VarlinkNew(&data))
 	err := service.Listen("unix:/run/org.example.this", 0)
+
+Client connecting to a service:
+
+	ctx := context.Background()
+	conn, err := varlink.NewConnection(ctx, "unix:/run/org.example.this")
+	if err != nil {
+		// handle error
+	}
+
+	defer conn.Close()
+
+Custom dialer for connecting to a Unix socket on a remote host via SSH:
+
+	import "golang.org/x/crypto/ssh"
+
+	// SSH into remote host
+	sshConfig := &ssh.ClientConfig{
+		User: "user",
+		Auth: []ssh.AuthMethod{
+			ssh.Password("password"),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // don't do this
+	}
+
+	sshClient, err := ssh.Dial("tcp", "remote.example.com:22", sshConfig)
+	if err != nil {
+		// handle error
+	}
+	defer sshClient.Close()
+
+	// Custom dialer that connects through SSH
+	type sshDialer struct {
+		client *ssh.Client
+	}
+
+	func (d *sshDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+		return d.client.Dial(network, addr)
+	}
+
+	// Connect to Unix socket on the remote host
+	conn, err := varlink.NewConnectionWithDialer(ctx, "unix:/run/org.example.service", &sshDialer{sshClient})
 */
 package varlink
