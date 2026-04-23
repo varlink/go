@@ -29,6 +29,9 @@ func writeType(b *bytes.Buffer, t *idl.Type, json bool, ident int) {
 	case idl.TypeObject:
 		b.WriteString("json.RawMessage")
 
+	case idl.TypeAny:
+		b.WriteString("any")
+
 	case idl.TypeArray:
 		b.WriteString("[]")
 		writeType(b, t.ElementType, json, ident)

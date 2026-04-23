@@ -84,6 +84,7 @@ func TestBasicTypes(t *testing.T) {
 	testParse(t, true, "interface foo.bar\n type I (b:float)\nmethod F()->()")
 	testParse(t, true, "interface foo.bar\n type I (b:int)\nmethod F()->()")
 	testParse(t, true, "interface foo.bar\n type I (b:object)\nmethod F()->()")
+	testParse(t, true, "interface foo.bar\n type I (b:any)\nmethod F()->()")
 }
 
 func TestTypeOneArray(t *testing.T) {
