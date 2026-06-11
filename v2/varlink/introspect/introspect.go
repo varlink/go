@@ -83,10 +83,10 @@ func ParseMethodMode(doc string) (MethodMode, error) {
 	mode := ModeUnary
 	for _, line := range strings.Split(doc, "\n") {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "@mode") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "@mode" {
 			continue
 		}
-		fields := strings.Fields(line)
 		if len(fields) != 2 {
 			return "", fmt.Errorf("invalid @mode directive %q", line)
 		}

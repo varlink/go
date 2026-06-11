@@ -49,11 +49,11 @@ func (c *ConnClient) Invoke(ctx context.Context, method string, in any, out any)
 		return err
 	}
 	if msg.Continues {
-		return &ReplyError{Method: method, Err: ErrUnexpectedReply}
+		return c.fail(&ReplyError{Method: method, Err: ErrUnexpectedReply})
 	}
 	if msg.Parameters != nil {
 		if err := codec.DecodeParameters(msg.Parameters, out); err != nil {
-			return &ReplyError{Method: method, Err: err}
+			return c.fail(&ReplyError{Method: method, Err: err})
 		}
 	}
 	return nil
@@ -101,11 +101,11 @@ func (c *ConnClient) Upgrade(ctx context.Context, method string, in any, out any
 		return nil, err
 	}
 	if msg.Continues {
-		return nil, &ReplyError{Method: method, Err: ErrUnexpectedReply}
+		return nil, c.fail(&ReplyError{Method: method, Err: ErrUnexpectedReply})
 	}
 	if msg.Parameters != nil {
 		if err := codec.DecodeParameters(msg.Parameters, out); err != nil {
-			return nil, &ReplyError{Method: method, Err: err}
+			return nil, c.fail(&ReplyError{Method: method, Err: err})
 		}
 	}
 
@@ -164,25 +164,28 @@ func (c *ConnClient) sendRequest(ctx context.Context, method string, in any, mor
 	if err != nil {
 		return err
 	}
-	return c.transport.writeMessage(ctx, c.cfg.WriteTimeout, Message{
+	if err := c.transport.writeMessage(ctx, c.cfg.WriteTimeout, Message{
 		Method:     method,
 		Parameters: params,
 		More:       more,
 		Oneway:     oneway,
 		Upgrade:    upgrade,
-	})
+	}); err != nil {
+		return c.fail(err)
+	}
+	return nil
 }
 
 func (c *ConnClient) readReply(ctx context.Context, method string) (Message, error) {
 	msg, err := c.transport.readMessage(ctx, c.cfg.ReadTimeout)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return Message{}, io.ErrUnexpectedEOF
+			err = io.ErrUnexpectedEOF
 		}
-		return Message{}, err
+		return Message{}, c.fail(err)
 	}
 	if msg.Method != "" || msg.More || msg.Oneway || msg.Upgrade {
-		return Message{}, &ReplyError{Method: method, Err: ErrProtocolViolation}
+		return Message{}, c.fail(&ReplyError{Method: method, Err: ErrProtocolViolation})
 	}
 	if remote := remoteErrorFromMessage(msg); remote != nil {
 		return Message{}, remote
@@ -199,22 +202,33 @@ type clientStream struct {
 	client *ConnClient
 	method string
 	done   bool
+	closed bool
 }
 
 func (s *clientStream) Recv(ctx context.Context, out any) error {
+	if s.closed {
+		return ErrStreamClosed
+	}
 	if s.done {
 		return io.EOF
 	}
 
 	msg, err := s.client.readReply(ctx, s.method)
 	if err != nil {
+		s.done = true
 		s.release()
 		return err
 	}
 	if msg.Parameters != nil {
 		if err := codec.DecodeParameters(msg.Parameters, out); err != nil {
+			client := s.client
+			s.done = true
 			s.release()
-			return &ReplyError{Method: s.method, Err: err}
+			err := &ReplyError{Method: s.method, Err: err}
+			if client != nil {
+				return client.fail(err)
+			}
+			return err
 		}
 	}
 	if !msg.Continues {
@@ -229,6 +243,7 @@ func (s *clientStream) Close() error {
 		return nil
 	}
 	s.done = true
+	s.closed = true
 	client := s.client
 	s.release()
 	if client == nil {

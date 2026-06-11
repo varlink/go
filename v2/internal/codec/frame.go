@@ -12,6 +12,9 @@ const (
 	Delimiter = byte(0)
 	// DefaultMaxFrameSize is the default maximum size of a decoded message payload.
 	DefaultMaxFrameSize = 1024 * 1024
+	// DefaultReaderBufferSize is the default buffered reader size used by the wire codec.
+	DefaultReaderBufferSize = 4096
+	initialFrameBufferSize  = 4 * 1024
 )
 
 var (
@@ -49,7 +52,7 @@ func (f Framer) ReadFrameInto(r *bufio.Reader, dst []byte) ([]byte, error) {
 	maxFrameSize := resolveMaxFrameSize(f.MaxFrameSize)
 	frame := dst[:0]
 	if cap(frame) == 0 {
-		frame = make([]byte, 0, min(maxFrameSize, 4*1024))
+		frame = make([]byte, 0, min(maxFrameSize, initialFrameBufferSize))
 	}
 	for {
 		chunk, err := r.ReadSlice(Delimiter)
@@ -84,13 +87,13 @@ func (f Framer) ReadFrameInto(r *bufio.Reader, dst []byte) ([]byte, error) {
 // NewReader returns a Reader with its own bufio.Reader and reusable frame scratch buffer.
 func NewReader(r io.Reader, bufferSize, maxFrameSize int) *Reader {
 	if bufferSize <= 0 {
-		bufferSize = 4096
+		bufferSize = DefaultReaderBufferSize
 	}
 	framer := New(maxFrameSize)
 	return &Reader{
 		framer:  framer,
 		reader:  bufio.NewReaderSize(r, bufferSize),
-		scratch: make([]byte, 0, min(framer.MaxFrameSize, 4*1024)),
+		scratch: make([]byte, 0, min(framer.MaxFrameSize, initialFrameBufferSize)),
 	}
 }
 
@@ -103,7 +106,7 @@ func NewReaderFromBufio(r *bufio.Reader, maxFrameSize int) *Reader {
 	return &Reader{
 		framer:  framer,
 		reader:  r,
-		scratch: make([]byte, 0, min(framer.MaxFrameSize, 4*1024)),
+		scratch: make([]byte, 0, min(framer.MaxFrameSize, initialFrameBufferSize)),
 	}
 }
 

@@ -47,3 +47,13 @@ func TestParseMethodModeInvalid(t *testing.T) {
 		t.Fatal("ParseMethodMode() unexpectedly succeeded")
 	}
 }
+
+func TestParseMethodModeIgnoresModePrefixWords(t *testing.T) {
+	mode, err := ParseMethodMode("@models are documentation\n@mode stream")
+	if err != nil {
+		t.Fatalf("ParseMethodMode() error = %v", err)
+	}
+	if mode != ModeStream {
+		t.Fatalf("ParseMethodMode() = %q, want %q", mode, ModeStream)
+	}
+}

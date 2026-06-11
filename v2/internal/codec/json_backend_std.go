@@ -20,9 +20,13 @@ func marshalParameters(v any) (*RawValue, error) {
 	}
 	switch raw := v.(type) {
 	case *RawValue:
-		return raw, nil
+		if raw == nil {
+			return nil, nil
+		}
+		copyRaw := append(RawValue(nil), (*raw)...)
+		return &copyRaw, nil
 	case RawValue:
-		copyRaw := raw
+		copyRaw := append(RawValue(nil), raw...)
 		return &copyRaw, nil
 	}
 	b, err := marshalJSON(v)

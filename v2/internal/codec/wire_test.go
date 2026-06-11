@@ -44,6 +44,63 @@ func TestWireWriteReadMessage(t *testing.T) {
 	}
 }
 
+func TestMarshalParametersCopiesRawValue(t *testing.T) {
+	raw := RawValue(`{"value":"original"}`)
+	got, err := MarshalParameters(raw)
+	if err != nil {
+		t.Fatalf("MarshalParameters() value error = %v", err)
+	}
+	raw[10] = 'm'
+	if string(*got) != `{"value":"original"}` {
+		t.Fatalf("MarshalParameters() value aliased input: %s", *got)
+	}
+
+	raw = RawValue(`{"value":"pointer"}`)
+	got, err = MarshalParameters(&raw)
+	if err != nil {
+		t.Fatalf("MarshalParameters() pointer error = %v", err)
+	}
+	raw[10] = 'm'
+	if string(*got) != `{"value":"pointer"}` {
+		t.Fatalf("MarshalParameters() pointer aliased input: %s", *got)
+	}
+}
+
+func TestMarshalParametersMatchesV1WireEncoding(t *testing.T) {
+	got, err := MarshalParameters(map[string]any{
+		"nilMap":   map[string]string(nil),
+		"nilSlice": []string(nil),
+		"text":     "\u2028\u2029",
+		"values": map[string]string{
+			"b": "<tag>",
+			"a": "&",
+		},
+	})
+	if err != nil {
+		t.Fatalf("MarshalParameters() error = %v", err)
+	}
+	want := `{"nilMap":null,"nilSlice":null,"text":"\u2028\u2029","values":{"a":"\u0026","b":"\u003ctag\u003e"}}`
+	if string(*got) != want {
+		t.Fatalf("MarshalParameters() = %s, want %s", *got, want)
+	}
+}
+
+func TestMarshalParametersReplacesInvalidUTF8(t *testing.T) {
+	got, err := MarshalParameters(map[string]string{
+		"bad": string([]byte{0xff}),
+	})
+	if err != nil {
+		t.Fatalf("MarshalParameters() error = %v", err)
+	}
+	var decoded map[string]string
+	if err := DecodeParameters(got, &decoded); err != nil {
+		t.Fatalf("DecodeParameters() error = %v", err)
+	}
+	if decoded["bad"] != "\ufffd" {
+		t.Fatalf("decoded invalid UTF-8 = %q, want replacement rune", decoded["bad"])
+	}
+}
+
 func TestWireResetReader(t *testing.T) {
 	var out bytes.Buffer
 	wire := NewWire(bytes.NewReader([]byte(`{"method":"one"}`+"\x00")), &out, 64, 1024)

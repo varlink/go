@@ -10,11 +10,11 @@ import (
 type RawValue = jsonv1.RawMessage
 
 func marshalJSON(v any) ([]byte, error) {
-	return json.Marshal(v)
+	return json.Marshal(v, jsonv1.DefaultOptionsV1())
 }
 
 func unmarshalJSON(in []byte, out any) error {
-	return json.Unmarshal(in, out)
+	return json.Unmarshal(in, out, jsonv1.DefaultOptionsV1())
 }
 
 func marshalParameters(v any) (*RawValue, error) {
@@ -23,9 +23,13 @@ func marshalParameters(v any) (*RawValue, error) {
 	}
 	switch raw := v.(type) {
 	case *RawValue:
-		return raw, nil
+		if raw == nil {
+			return nil, nil
+		}
+		copyRaw := append(RawValue(nil), (*raw)...)
+		return &copyRaw, nil
 	case RawValue:
-		copyRaw := raw
+		copyRaw := append(RawValue(nil), raw...)
 		return &copyRaw, nil
 	}
 	b, err := marshalJSON(v)

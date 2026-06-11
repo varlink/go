@@ -74,3 +74,13 @@ error Failed(reason: string)
 		}
 	}
 }
+
+func TestParseMethodModeIgnoresModePrefixWords(t *testing.T) {
+	mode, err := parseMethodMode("@models are documentation\n@mode stream")
+	if err != nil {
+		t.Fatalf("parseMethodMode() error = %v", err)
+	}
+	if mode != modeStream {
+		t.Fatalf("parseMethodMode() = %q, want %q", mode, modeStream)
+	}
+}

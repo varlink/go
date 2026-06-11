@@ -3,6 +3,7 @@ package varlink
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/varlink/go/v2/internal/codec"
@@ -94,11 +95,8 @@ func (s *Server) handleMessage(ctx context.Context, transport *framedTransport, 
 				oneway:     msg.Oneway,
 			},
 		}
-		err := handler.unary(ctx, call)
+		err := s.callUnaryHandler(ctx, handler.unary, call)
 		if err != nil {
-			if call.replied || call.upgraded {
-				return false, err
-			}
 			return false, err
 		}
 		if !call.oneway && !call.replied {
@@ -120,11 +118,8 @@ func (s *Server) handleMessage(ctx context.Context, transport *framedTransport, 
 				cfg:        s.cfg,
 			},
 		}
-		err := handler.stream(ctx, call)
+		err := s.callStreamHandler(ctx, handler.stream, call)
 		if err != nil {
-			if call.replied || call.upgraded {
-				return false, err
-			}
 			return false, err
 		}
 		if !call.replied && !call.closed {
@@ -148,13 +143,9 @@ func (s *Server) handleMessage(ctx context.Context, transport *framedTransport, 
 				transport:  transport,
 				cfg:        s.cfg,
 			},
-			conn: transport.conn,
 		}
-		err := handler.upgrade(ctx, call)
+		err := s.callUpgradeHandler(ctx, handler.upgrade, call)
 		if err != nil {
-			if call.replied || call.upgraded {
-				return false, err
-			}
 			return false, err
 		}
 		if !call.replied && !call.upgraded {
@@ -165,6 +156,41 @@ func (s *Server) handleMessage(ctx context.Context, transport *framedTransport, 
 	default:
 		return false, ErrProtocolViolation
 	}
+}
+
+func (s *Server) callUnaryHandler(ctx context.Context, handler UnaryHandler, call *unaryRequest) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = s.recoverCallPanic(ctx, &call.baseRequest, recovered)
+		}
+	}()
+	return handler(ctx, call)
+}
+
+func (s *Server) callStreamHandler(ctx context.Context, handler StreamHandler, call *streamRequest) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = s.recoverCallPanic(ctx, &call.baseRequest, recovered)
+		}
+	}()
+	return handler(ctx, call)
+}
+
+func (s *Server) callUpgradeHandler(ctx context.Context, handler UpgradeHandler, call *upgradeRequest) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = s.recoverCallPanic(ctx, &call.baseRequest, recovered)
+		}
+	}()
+	return handler(ctx, call)
+}
+
+func (s *Server) recoverCallPanic(ctx context.Context, call *baseRequest, recovered any) error {
+	err := fmt.Errorf("varlink: handler panic: %v", recovered)
+	if !call.replied && !call.upgraded {
+		_ = call.ReplyError(ctx, serviceInternalError, nil)
+	}
+	return err
 }
 
 func (s *Server) handleServiceMethod(ctx context.Context, transport *framedTransport, request Message, method string) error {
@@ -344,7 +370,6 @@ func (r *streamRequest) Close(ctx context.Context, out any) error {
 
 type upgradeRequest struct {
 	baseRequest
-	conn io.ReadWriteCloser
 }
 
 func (r *upgradeRequest) Accept(ctx context.Context, out any) (io.ReadWriteCloser, error) {
@@ -362,5 +387,5 @@ func (r *upgradeRequest) Accept(ctx context.Context, out any) (io.ReadWriteClose
 	}); err != nil {
 		return nil, err
 	}
-	return r.conn, nil
+	return r.transport.detach(), nil
 }

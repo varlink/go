@@ -32,4 +32,7 @@ error MethodNotFound (method: string)
 error MethodNotImplemented (method: string)
 
 # One of the passed parameters is invalid.
-error InvalidParameter (parameter: string)`
+error InvalidParameter (parameter: string)
+
+# The service encountered an unexpected internal error.
+error InternalError ()`

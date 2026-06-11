@@ -7,8 +7,10 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestConnClientInvoke(t *testing.T) {
@@ -206,6 +208,50 @@ func TestConnClientStreamCloseBeforeFinalReplyDoesNotPanic(t *testing.T) {
 	<-done
 }
 
+func TestConnClientStreamRecvAfterCloseReturnsErrStreamClosed(t *testing.T) {
+	client, done := newTestClientServer(t, func(b *ServerBuilder) {
+		if err := b.RegisterStream("org.example.test", "Watch", func(ctx context.Context, call StreamCall) error {
+			return call.Send(ctx, struct {
+				Value string `json:"value"`
+			}{Value: "one"})
+		}); err != nil {
+			t.Fatalf("RegisterStream() error = %v", err)
+		}
+	})
+
+	stream, err := client.Stream(context.Background(), "org.example.test.Watch", nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+	if err := stream.Close(); err != nil {
+		t.Fatalf("Stream.Close() error = %v", err)
+	}
+	if err := stream.Recv(context.Background(), nil); !errors.Is(err, ErrStreamClosed) {
+		t.Fatalf("Recv() after Close error = %v, want %v", err, ErrStreamClosed)
+	}
+	<-done
+}
+
+func TestConnClientStreamRecvErrorIsTerminal(t *testing.T) {
+	conn := &scriptedConn{
+		reader: bytes.NewBufferString(`{"error":"org.example.test.Failed"}` + "\x00"),
+	}
+	client := NewClient(conn, ClientConfig{})
+	stream, err := client.Stream(context.Background(), "org.example.test.Watch", nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	err = stream.Recv(context.Background(), nil)
+	var remote *RemoteError
+	if !errors.As(err, &remote) {
+		t.Fatalf("Recv() error = %T %v, want *RemoteError", err, err)
+	}
+	if err := stream.Recv(context.Background(), nil); !errors.Is(err, io.EOF) {
+		t.Fatalf("Recv() second error = %v, want %v", err, io.EOF)
+	}
+}
+
 func TestConnClientUpgrade(t *testing.T) {
 	client, done := newTestClientServer(t, func(b *ServerBuilder) {
 		if err := b.RegisterUpgrade("org.example.test", "Bridge", func(ctx context.Context, call UpgradeCall) error {
@@ -276,6 +322,81 @@ func TestConnClientUpgradePreservesBufferedBytes(t *testing.T) {
 	}
 }
 
+func TestServerUpgradePreservesBufferedBytes(t *testing.T) {
+	readEarly := make(chan string, 1)
+	builder := NewServerBuilder(ServerConfig{})
+	if err := builder.RegisterUpgrade("org.example.test", "Bridge", func(ctx context.Context, call UpgradeCall) error {
+		conn, err := call.Accept(ctx, struct {
+			Ready bool `json:"ready"`
+		}{Ready: true})
+		if err != nil {
+			return err
+		}
+		buf := make([]byte, 5)
+		if _, err := io.ReadFull(conn, buf); err != nil {
+			return err
+		}
+		readEarly <- string(buf)
+		return nil
+	}); err != nil {
+		t.Fatalf("RegisterUpgrade() error = %v", err)
+	}
+
+	conn := &scriptedConn{
+		reader: bytes.NewBufferString(`{"method":"org.example.test.Bridge","upgrade":true}` + "\x00" + "early"),
+	}
+	if err := builder.Build().Serve(context.Background(), conn); err != nil {
+		t.Fatalf("Serve() error = %v", err)
+	}
+	if got, want := <-readEarly, "early"; got != want {
+		t.Fatalf("server upgrade buffered bytes = %q, want %q", got, want)
+	}
+	if got := conn.writer.String(); !strings.Contains(got, `"ready":true`) {
+		t.Fatalf("upgrade reply = %q, want ready parameter", got)
+	}
+}
+
+func TestFramedTransportDetachPreservesNetConnWithBufferedBytes(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := clientConn.Write([]byte(`{"method":"org.example.test.Bridge","upgrade":true}` + "\x00" + "early"))
+		writeDone <- err
+	}()
+
+	transport := newFramedTransport(serverConn, 0)
+	if _, err := transport.readMessage(context.Background(), 0); err != nil {
+		t.Fatalf("readMessage() error = %v", err)
+	}
+	if buffered := transport.wire.Buffered(); buffered == 0 {
+		t.Fatal("test did not buffer upgraded bytes")
+	}
+
+	upgraded := transport.detach()
+	defer upgraded.Close()
+	if _, ok := upgraded.(net.Conn); !ok {
+		t.Fatalf("detach() = %T, want net.Conn", upgraded)
+	}
+	buf := make([]byte, 5)
+	if _, err := io.ReadFull(upgraded, buf); err != nil {
+		t.Fatalf("upgraded Read() error = %v", err)
+	}
+	if got, want := string(buf), "early"; got != want {
+		t.Fatalf("upgraded buffered bytes = %q, want %q", got, want)
+	}
+
+	select {
+	case err := <-writeDone:
+		if err != nil {
+			t.Fatalf("client write error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("client write did not complete")
+	}
+}
+
 func TestConnClientStreamReplyErrorIsTerminal(t *testing.T) {
 	client, done := newTestClientServer(t, func(b *ServerBuilder) {
 		if err := b.RegisterStream("org.example.test", "Watch", func(ctx context.Context, call StreamCall) error {
@@ -299,6 +420,147 @@ func TestConnClientStreamReplyErrorIsTerminal(t *testing.T) {
 	}
 	if remote.Name != "org.example.test.Failed" {
 		t.Fatalf("remote name = %q", remote.Name)
+	}
+}
+
+func TestServerHandlerPanicRepliesInternalErrorAndClosesConnection(t *testing.T) {
+	builder := NewServerBuilder(ServerConfig{})
+	if err := builder.RegisterUnary("org.example.test", "Panic", func(context.Context, UnaryCall) error {
+		panic("boom")
+	}); err != nil {
+		t.Fatalf("RegisterUnary() error = %v", err)
+	}
+	serverConn, clientConn := net.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		done <- builder.Build().Serve(context.Background(), serverConn)
+	}()
+	client := NewClient(clientConn, ClientConfig{})
+
+	err := client.Invoke(context.Background(), "org.example.test.Panic", nil, nil)
+	var remote *RemoteError
+	if !errors.As(err, &remote) {
+		t.Fatalf("Invoke() error = %T %v, want *RemoteError", err, err)
+	}
+	if remote.Name != serviceInternalError {
+		t.Fatalf("panic error name = %q, want %q", remote.Name, serviceInternalError)
+	}
+
+	serveErr := <-done
+	if serveErr == nil || !strings.Contains(serveErr.Error(), "handler panic: boom") {
+		t.Fatalf("Serve() error = %v, want handler panic", serveErr)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("client.Close() error = %v", err)
+	}
+}
+
+func TestTransportReadMessageContextCancelUnblocks(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := newFramedTransport(serverConn, 0).readMessage(ctx, 0)
+		done <- err
+	}()
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("readMessage() error = %v, want %v", err, context.Canceled)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("readMessage() did not unblock after context cancellation")
+	}
+}
+
+func TestTransportWriteMessageContextCancelUnblocks(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		err := newFramedTransport(serverConn, 0).writeMessage(ctx, 0, Message{
+			Method: "org.example.test.Ping",
+		})
+		done <- err
+	}()
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("writeMessage() error = %v, want %v", err, context.Canceled)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("writeMessage() did not unblock after context cancellation")
+	}
+}
+
+func TestConnClientInvokeContextCancelClosesClient(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+
+	copyDone := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(io.Discard, serverConn)
+		close(copyDone)
+	}()
+
+	client := NewClient(clientConn, ClientConfig{})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- client.Invoke(ctx, "org.example.test.Ping", nil, nil)
+	}()
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Invoke() error = %v, want %v", err, context.Canceled)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Invoke() did not unblock after context cancellation")
+	}
+	if err := client.Invoke(context.Background(), "org.example.test.Ping", nil, nil); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("Invoke() after cancel error = %v, want %v", err, io.ErrClosedPipe)
+	}
+	<-copyDone
+}
+
+func TestConnClientOnewayContextCancelClosesClient(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(clientConn, ClientConfig{})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- client.Oneway(ctx, "org.example.test.Notify", nil)
+	}()
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Oneway() error = %v, want %v", err, context.Canceled)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Oneway() did not unblock after context cancellation")
+	}
+	if err := client.Oneway(context.Background(), "org.example.test.Notify", nil); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("Oneway() after cancel error = %v, want %v", err, io.ErrClosedPipe)
 	}
 }
 

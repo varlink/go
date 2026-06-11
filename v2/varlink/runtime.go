@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ const (
 	serviceMethodNotFound       = "org.varlink.service.MethodNotFound"
 	serviceMethodNotImplemented = "org.varlink.service.MethodNotImplemented"
 	serviceInvalidParameter     = "org.varlink.service.InvalidParameter"
+	serviceInternalError        = "org.varlink.service.InternalError"
 )
 
 var (
@@ -61,18 +63,22 @@ type framedTransport struct {
 func newFramedTransport(conn io.ReadWriteCloser, maxFrameSize int) *framedTransport {
 	return &framedTransport{
 		conn: conn,
-		wire: codec.NewWire(conn, conn, 4096, maxFrameSize),
+		wire: codec.NewWire(conn, conn, codec.DefaultReaderBufferSize, maxFrameSize),
 	}
 }
 
 func (t *framedTransport) readMessage(ctx context.Context, timeout time.Duration) (Message, error) {
-	if err := setReadDeadline(t.conn, ctx, timeout); err != nil {
+	stopDeadline, err := setReadDeadline(t.conn, ctx, timeout)
+	if err != nil {
 		return Message{}, err
 	}
-	defer clearReadDeadline(t.conn)
+	defer stopDeadline()
 
 	msg, err := t.wire.ReadMessage()
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return Message{}, ctxErr
+		}
 		if codec.IsDecodeError(err) {
 			return Message{}, &ReplyError{Err: err}
 		}
@@ -82,22 +88,36 @@ func (t *framedTransport) readMessage(ctx context.Context, timeout time.Duration
 }
 
 func (t *framedTransport) writeMessage(ctx context.Context, timeout time.Duration, msg Message) error {
-	if err := setWriteDeadline(t.conn, ctx, timeout); err != nil {
+	stopDeadline, err := setWriteDeadline(t.conn, ctx, timeout)
+	if err != nil {
 		return err
 	}
-	defer clearWriteDeadline(t.conn)
+	defer stopDeadline()
 
-	return t.wire.WriteMessage(codec.Message(msg))
+	if err := t.wire.WriteMessage(codec.Message(msg)); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return err
+	}
+	return nil
 }
 
 func (t *framedTransport) detach() io.ReadWriteCloser {
 	if t.wire.Buffered() == 0 {
 		return t.conn
 	}
-	return &bufferedConn{
+	conn := &bufferedConn{
 		conn: t.conn,
 		wire: t.wire,
 	}
+	if netConn, ok := t.conn.(net.Conn); ok {
+		return &bufferedNetConn{
+			bufferedConn: conn,
+			netConn:      netConn,
+		}
+	}
+	return conn
 }
 
 type bufferedConn struct {
@@ -126,6 +146,31 @@ func (c *bufferedConn) Close() error {
 	return c.conn.Close()
 }
 
+type bufferedNetConn struct {
+	*bufferedConn
+	netConn net.Conn
+}
+
+func (c *bufferedNetConn) LocalAddr() net.Addr {
+	return c.netConn.LocalAddr()
+}
+
+func (c *bufferedNetConn) RemoteAddr() net.Addr {
+	return c.netConn.RemoteAddr()
+}
+
+func (c *bufferedNetConn) SetDeadline(t time.Time) error {
+	return c.netConn.SetDeadline(t)
+}
+
+func (c *bufferedNetConn) SetReadDeadline(t time.Time) error {
+	return c.netConn.SetReadDeadline(t)
+}
+
+func (c *bufferedNetConn) SetWriteDeadline(t time.Time) error {
+	return c.netConn.SetWriteDeadline(t)
+}
+
 func remoteErrorFromMessage(msg Message) *RemoteError {
 	if msg.Error == "" {
 		return nil
@@ -140,40 +185,48 @@ func remoteErrorFromMessage(msg Message) *RemoteError {
 	}
 }
 
-func setReadDeadline(conn io.ReadWriteCloser, ctx context.Context, timeout time.Duration) error {
+func setReadDeadline(conn io.ReadWriteCloser, ctx context.Context, timeout time.Duration) (func(), error) {
 	r, ok := conn.(deadlineReader)
 	if !ok {
-		return nil
+		return func() {}, nil
 	}
 	deadline, ok := resolveDeadline(ctx, timeout)
 	if !ok {
-		return r.SetReadDeadline(time.Time{})
+		deadline = time.Time{}
 	}
-	return r.SetReadDeadline(deadline)
+	return setDeadline(ctx, deadline, r.SetReadDeadline)
 }
 
-func clearReadDeadline(conn io.ReadWriteCloser) {
-	if r, ok := conn.(deadlineReader); ok {
-		_ = r.SetReadDeadline(time.Time{})
-	}
-}
-
-func setWriteDeadline(conn io.ReadWriteCloser, ctx context.Context, timeout time.Duration) error {
+func setWriteDeadline(conn io.ReadWriteCloser, ctx context.Context, timeout time.Duration) (func(), error) {
 	w, ok := conn.(deadlineWriter)
 	if !ok {
-		return nil
+		return func() {}, nil
 	}
 	deadline, ok := resolveDeadline(ctx, timeout)
 	if !ok {
-		return w.SetWriteDeadline(time.Time{})
+		deadline = time.Time{}
 	}
-	return w.SetWriteDeadline(deadline)
+	return setDeadline(ctx, deadline, w.SetWriteDeadline)
 }
 
-func clearWriteDeadline(conn io.ReadWriteCloser) {
-	if w, ok := conn.(deadlineWriter); ok {
-		_ = w.SetWriteDeadline(time.Time{})
+func setDeadline(ctx context.Context, deadline time.Time, set func(time.Time) error) (func(), error) {
+	if err := set(deadline); err != nil {
+		return nil, err
 	}
+	done := make(chan struct{})
+	stopContext := context.AfterFunc(ctx, func() {
+		_ = set(time.Now())
+		close(done)
+	})
+	if ctx.Err() != nil {
+		_ = set(time.Now())
+	}
+	return func() {
+		if !stopContext() {
+			<-done
+		}
+		_ = set(time.Time{})
+	}, nil
 }
 
 func resolveDeadline(ctx context.Context, timeout time.Duration) (time.Time, bool) {
