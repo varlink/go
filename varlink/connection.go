@@ -6,10 +6,22 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/varlink/go/varlink/internal/ctxio"
 )
+
+// ErrFDsUnsupported is returned when file-descriptor passing is attempted
+// over a transport that does not support SCM_RIGHTS (i.e. non-unix sockets).
+var ErrFDsUnsupported = ctxio.ErrFDsUnsupported
+
+// FDReadWriter extends ReadWriterContext with fd-passing capabilities.
+// Conn implements this interface on unix transports.
+type FDReadWriter interface {
+	WriteWithFDs(ctx context.Context, buf []byte, fds []*os.File) (int, error)
+	ReadBytesWithFDs(ctx context.Context, delim byte) ([]byte, []*os.File, error)
+}
 
 // Message flags for Send(). More indicates that the client accepts more than one method
 // reply to this call. Oneway requests, that the service must not send a method reply to
@@ -109,6 +121,35 @@ type Connection struct {
 // If Send() is called with the `More` flag and the receive() function carries the `Continues` flag, receive()
 // can be called multiple times to retrieve multiple replies.
 func (c *Connection) Send(ctx context.Context, method string, parameters interface{}, flags uint64) (func(context.Context, interface{}) (uint64, error), error) {
+	receive, err := c.SendWithFDs(ctx, method, parameters, flags, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Wrap the fd-aware receive closure into the simpler (uint64, error) signature.
+	// Close any reply fds: Send callers don't expect or own them, so leaking them
+	// would be silent. A well-behaved service never sends fds to a plain Send caller,
+	// but we defend here regardless.
+	return func(ctx context.Context, out interface{}) (uint64, error) {
+		flags, rxFDs, err := receive(ctx, out)
+		for _, f := range rxFDs {
+			if f != nil {
+				f.Close()
+			}
+		}
+		return flags, err
+	}, nil
+}
+
+// SendWithFDs sends a method call with optional file descriptors attached as SCM_RIGHTS
+// ancillary data. It returns a receive function that yields the reply, any reply fds,
+// and the flags.
+//
+// On non-unix transports, passing len(fds) > 0 returns ErrFDsUnsupported. With zero fds
+// the behaviour is identical to Send.
+//
+// Ownership: the caller retains ownership of fds; the library never closes them.
+// Returned *os.File values from the receive closure are owned by the caller.
+func (c *Connection) SendWithFDs(ctx context.Context, method string, parameters interface{}, flags uint64, fds []*os.File) (func(context.Context, interface{}) (uint64, []*os.File, error), error) {
 	type call struct {
 		Method     string      `json:"method"`
 		Parameters interface{} `json:"parameters,omitempty"`
@@ -145,7 +186,14 @@ func (c *Connection) Send(ctx context.Context, method string, parameters interfa
 
 	b = append(b, 0)
 
-	_, err = c.conn.Write(ctx, b)
+	if c.conn.CanPassFDs() {
+		_, err = c.conn.WriteWithFDs(ctx, b, fds)
+	} else {
+		if len(fds) > 0 {
+			return nil, ErrFDsUnsupported
+		}
+		_, err = c.conn.Write(ctx, b)
+	}
 	if err != nil {
 		if err == io.EOF {
 			return nil, io.ErrUnexpectedEOF
@@ -153,25 +201,36 @@ func (c *Connection) Send(ctx context.Context, method string, parameters interfa
 		return nil, err
 	}
 
-	receive := func(ctx context.Context, outParameters interface{}) (uint64, error) {
+	receive := func(ctx context.Context, outParameters interface{}) (uint64, []*os.File, error) {
 		type reply struct {
 			Parameters *json.RawMessage `json:"parameters"`
 			Continues  bool             `json:"continues"`
 			Error      string           `json:"error"`
 		}
 
-		out, err := c.conn.ReadBytes(ctx, '\x00')
-		if err != nil {
-			if err == io.EOF {
-				return 0, io.ErrUnexpectedEOF
+		var (
+			out     []byte
+			rxFDs   []*os.File
+			readErr error
+		)
+
+		if c.conn.CanPassFDs() {
+			out, rxFDs, readErr = c.conn.ReadBytesWithFDs(ctx, '\x00')
+		} else {
+			out, readErr = c.conn.ReadBytes(ctx, '\x00')
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				return 0, rxFDs, io.ErrUnexpectedEOF
 			}
-			return 0, err
+			return 0, rxFDs, readErr
 		}
 
 		var m reply
 		err = json.Unmarshal(out[:len(out)-1], &m)
 		if err != nil {
-			return 0, err
+			// Return rxFDs so the caller can close them; do not leak here.
+			return 0, rxFDs, err
 		}
 
 		if m.Error != "" {
@@ -179,18 +238,22 @@ func (c *Connection) Send(ctx context.Context, method string, parameters interfa
 				Name:       m.Error,
 				Parameters: m.Parameters,
 			}
-			return 0, e.DispatchError()
+			// Return rxFDs so the caller can close them; do not leak here.
+			return 0, rxFDs, e.DispatchError()
 		}
 
 		if m.Parameters != nil {
-			json.Unmarshal(*m.Parameters, outParameters)
+			if err := json.Unmarshal(*m.Parameters, outParameters); err != nil {
+				// Return rxFDs so the caller can close them; do not leak here.
+				return 0, rxFDs, err
+			}
 		}
 
 		if m.Continues {
-			return Continues, nil
+			return Continues, rxFDs, nil
 		}
 
-		return 0, nil
+		return 0, rxFDs, nil
 	}
 
 	return receive, nil
@@ -205,6 +268,23 @@ func (c *Connection) Call(ctx context.Context, method string, parameters interfa
 
 	_, err = receive(ctx, outParameters)
 	return err
+}
+
+// CallWithFDs sends a method call with optional file descriptors and returns the method reply
+// along with any file descriptors returned by the service.
+//
+// On non-unix transports, passing len(fds) > 0 returns ErrFDsUnsupported.
+//
+// Ownership: the caller retains ownership of the sent fds. Returned *os.File values are
+// owned by the caller, who must Close them — even when err is non-nil (partial fd
+// delivery on error paths must still be closed by the caller).
+func (c *Connection) CallWithFDs(ctx context.Context, method string, parameters interface{}, outParameters interface{}, fds []*os.File) ([]*os.File, error) {
+	receive, err := c.SendWithFDs(ctx, method, &parameters, 0, fds)
+	if err != nil {
+		return nil, err
+	}
+	_, rxFDs, err := receive(ctx, outParameters)
+	return rxFDs, err
 }
 
 // GetInterfaceDescription requests the interface description string from the service.

@@ -4,28 +4,50 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"os"
 	"time"
 )
 
-// readChunk is the size of each underlying socket read performed by ReadBytes.
+// readChunk is the size of each underlying socket read performed by ReadBytes
+// and ReadBytesWithFDs.
 const readChunk = 8192
+
+// fdBatch associates a set of received *os.File values with an offset in readBuf
+// of the recvmsg that delivered them. Used by ReadBytesWithFDs on unix.
+//
+// startOffset is the position of the LAST byte appended to readBuf by the recvmsg
+// that carried these fds; see ReadBytesWithFDs for why the last byte (not the
+// first) is the reliable anchor. A message occupying readBuf[0:msgEnd] owns all
+// batches whose startOffset < msgEnd (their anchor byte fell within that message).
+type fdBatch struct {
+	startOffset int // position in readBuf of the last byte from this recvmsg
+	files       []*os.File
+}
 
 // Conn wraps net.Conn with context aware functionality.
 type Conn struct {
-	conn net.Conn
+	conn     net.Conn
+	unixConn *net.UnixConn // non-nil when conn is a *net.UnixConn; enables fd passing
 
 	// readBuf holds bytes that have been read from the socket but not yet
-	// consumed by a ReadBytes call. It replaces a bufio.Reader: varlink's
-	// upcoming fd-passing path cannot use bufio because SCM_RIGHTS ancillary
-	// data is bound to the exact recvmsg(2) that delivers the bytes, so a
-	// single shared leftover buffer is required across both read paths.
+	// consumed by a ReadBytes/ReadBytesWithFDs call. It replaces a bufio.Reader:
+	// the fd-passing path cannot use bufio because SCM_RIGHTS ancillary data is
+	// bound to the exact recvmsg(2) that delivers the bytes, so both read paths
+	// share this single leftover buffer.
 	readBuf []byte
+
+	// fdBatches is a FIFO of fd batches keyed by their startOffset into readBuf,
+	// maintained by ReadBytesWithFDs on unix transports.
+	fdBatches []fdBatch
 }
 
 // NewConn creates a new context aware Conn.
+// If c is a *net.UnixConn, fd passing is enabled (CanPassFDs returns true).
 func NewConn(c net.Conn) *Conn {
+	uc, _ := c.(*net.UnixConn)
 	return &Conn{
-		conn: c,
+		conn:     c,
+		unixConn: uc,
 	}
 }
 
@@ -37,8 +59,10 @@ func (c *Conn) NetConn() net.Conn {
 	return c.conn
 }
 
-// Close releases the Conns resources.
+// Close releases the Conn's resources and drains any unconsumed fd batches
+// to prevent file-descriptor leaks.
 func (c *Conn) Close() error {
+	c.drainFDBatches()
 	return c.conn.Close()
 }
 

@@ -76,11 +76,22 @@ func (s *Service) getInterfaceDescription(ctx context.Context, c Call, name stri
 	return c.replyGetInterfaceDescription(ctx, description)
 }
 
+// HandleMessage dispatches a single varlink message. It is equivalent to
+// HandleMessageWithFDs with a nil fds argument.
 func (s *Service) HandleMessage(ctx context.Context, conn ReadWriterContext, request []byte) error {
+	return s.HandleMessageWithFDs(ctx, conn, request, nil)
+}
+
+// HandleMessageWithFDs dispatches a single varlink message, attaching any file
+// descriptors received with it to the Call so handlers can retrieve them via
+// Call.RequestFDs(). Any fds not claimed by the handler are closed by this function
+// to prevent descriptor leaks.
+func (s *Service) HandleMessageWithFDs(ctx context.Context, conn ReadWriterContext, request []byte, fds []*os.File) error {
 	var in serviceCall
 
-	err := json.Unmarshal(request, &in)
-	if err != nil {
+	if err := json.Unmarshal(request, &in); err != nil {
+		// Close request fds on malformed-message early exit; nobody will claim them.
+		closeFDs(fds)
 		return err
 	}
 
@@ -88,27 +99,47 @@ func (s *Service) HandleMessage(ctx context.Context, conn ReadWriterContext, req
 		Conn:    conn,
 		In:      &in,
 		Request: &request,
+		// inFDs is a pointer shared across every value-copy of this Call (see
+		// the field doc), so a handler's RequestFDs() is visible here too.
+		inFDs: &fds,
 	}
 
 	r := strings.LastIndex(in.Method, ".")
 	if r <= 0 {
+		// Close unconsumed fds before returning.
+		closeFDs(c.RequestFDs())
 		return c.ReplyInvalidParameter(ctx, "method")
 	}
 
 	interfacename := in.Method[:r]
 	methodname := in.Method[r+1:]
 
+	var dispErr error
 	if interfacename == "org.varlink.service" {
-		return s.orgvarlinkserviceDispatch(ctx, c, methodname)
+		dispErr = s.orgvarlinkserviceDispatch(ctx, c, methodname)
+	} else {
+		// Find the interface and method in our service
+		iface, ok := s.interfaces[interfacename]
+		if !ok {
+			closeFDs(c.RequestFDs())
+			return c.ReplyInterfaceNotFound(ctx, interfacename)
+		}
+		dispErr = iface.VarlinkDispatch(ctx, c, methodname)
 	}
 
-	// Find the interface and method in our service
-	iface, ok := s.interfaces[interfacename]
-	if !ok {
-		return c.ReplyInterfaceNotFound(ctx, interfacename)
-	}
+	// Close any fds the handler did not claim.
+	closeFDs(c.RequestFDs())
+	return dispErr
+}
 
-	return iface.VarlinkDispatch(ctx, c, methodname)
+// closeFDs closes a slice of files, ignoring errors. Used to avoid fd leaks
+// when a handler does not claim the received file descriptors.
+func closeFDs(fds []*os.File) {
+	for _, f := range fds {
+		if f != nil {
+			f.Close()
+		}
+	}
 }
 
 // Shutdown shuts down the listener of a running service.
@@ -129,12 +160,22 @@ func (s *Service) handleConnection(ctx context.Context, conn net.Conn, wg *sync.
 	ctxConn := ctxio.NewConn(conn)
 
 	for {
-		request, err := ctxConn.ReadBytes(ctx, '\x00')
+		var (
+			request []byte
+			fds     []*os.File
+			err     error
+		)
+
+		if ctxConn.CanPassFDs() {
+			request, fds, err = ctxConn.ReadBytesWithFDs(ctx, '\x00')
+		} else {
+			request, err = ctxConn.ReadBytes(ctx, '\x00')
+		}
 		if err != nil {
 			break
 		}
 
-		err = s.HandleMessage(ctx, ctxConn, request[:len(request)-1])
+		err = s.HandleMessageWithFDs(ctx, ctxConn, request[:len(request)-1], fds)
 		if err != nil {
 			// FIXME: report error
 			// fmt.Fprintf(os.Stderr, "handleMessage: %v", err)
@@ -142,7 +183,7 @@ func (s *Service) handleConnection(ctx context.Context, conn net.Conn, wg *sync.
 		}
 	}
 
-	conn.Close()
+	ctxConn.Close()
 }
 
 func (s *Service) teardown() {
