@@ -54,6 +54,44 @@ func TestConnClientInvoke(t *testing.T) {
 	}
 }
 
+func TestConnClientInvokeDecodeErrorKeepsClientUsable(t *testing.T) {
+	client, done := newTestClientServer(t, func(b *ServerBuilder) {
+		if err := b.RegisterUnary("org.example.test", "Ping", func(ctx context.Context, call UnaryCall) error {
+			var in struct {
+				Message string `json:"message"`
+			}
+			if err := call.Decode(&in); err != nil {
+				return err
+			}
+			return call.Reply(ctx, struct {
+				Message string `json:"message"`
+			}{Message: "pong:" + in.Message})
+		}); err != nil {
+			t.Fatalf("RegisterUnary() error = %v", err)
+		}
+	})
+	defer closeClientServer(t, client, done)
+
+	var wrongOut struct {
+		Message int `json:"message"`
+	}
+	err := client.Invoke(context.Background(), "org.example.test.Ping", map[string]string{"message": "bad-shape"}, &wrongOut)
+	var replyErr *ReplyError
+	if !errors.As(err, &replyErr) {
+		t.Fatalf("Invoke() decode error = %T %v, want *ReplyError", err, err)
+	}
+
+	var out struct {
+		Message string `json:"message"`
+	}
+	if err := client.Invoke(context.Background(), "org.example.test.Ping", map[string]string{"message": "after"}, &out); err != nil {
+		t.Fatalf("Invoke() after decode error = %v", err)
+	}
+	if out.Message != "pong:after" {
+		t.Fatalf("Invoke() after decode error message = %q", out.Message)
+	}
+}
+
 func TestConnClientServiceInterface(t *testing.T) {
 	client, done := newTestClientServer(t, func(b *ServerBuilder) {
 		b.SetInfo(ServiceInfo{
@@ -100,6 +138,13 @@ func TestConnClientServiceInterface(t *testing.T) {
 	}
 	if desc.Description != "interface org.example.test\n\nmethod Ping() -> ()" {
 		t.Fatalf("GetInterfaceDescription returned %q", desc.Description)
+	}
+
+	if err := client.Invoke(context.Background(), "org.varlink.service.GetInterfaceDescription", map[string]string{"interface": serviceInterfaceName}, &desc); err != nil {
+		t.Fatalf("GetInterfaceDescription built-in error = %v", err)
+	}
+	if strings.Contains(desc.Description, "InternalError") {
+		t.Fatalf("built-in service description advertises InternalError: %q", desc.Description)
 	}
 
 	err := client.Invoke(context.Background(), "org.varlink.service.GetInterfaceDescription", map[string]string{"interface": "org.example.missing"}, &desc)
@@ -423,7 +468,7 @@ func TestConnClientStreamReplyErrorIsTerminal(t *testing.T) {
 	}
 }
 
-func TestServerHandlerPanicRepliesInternalErrorAndClosesConnection(t *testing.T) {
+func TestServerHandlerPanicClosesConnectionWithoutRemoteError(t *testing.T) {
 	builder := NewServerBuilder(ServerConfig{})
 	if err := builder.RegisterUnary("org.example.test", "Panic", func(context.Context, UnaryCall) error {
 		panic("boom")
@@ -439,11 +484,11 @@ func TestServerHandlerPanicRepliesInternalErrorAndClosesConnection(t *testing.T)
 
 	err := client.Invoke(context.Background(), "org.example.test.Panic", nil, nil)
 	var remote *RemoteError
-	if !errors.As(err, &remote) {
-		t.Fatalf("Invoke() error = %T %v, want *RemoteError", err, err)
+	if err == nil {
+		t.Fatal("Invoke() unexpectedly succeeded")
 	}
-	if remote.Name != serviceInternalError {
-		t.Fatalf("panic error name = %q, want %q", remote.Name, serviceInternalError)
+	if errors.As(err, &remote) {
+		t.Fatalf("Invoke() error = %T %v, want connection close without remote error", err, err)
 	}
 
 	serveErr := <-done
@@ -573,6 +618,19 @@ func TestConnClientUpgradeReplyErrorIsTerminal(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("RegisterUpgrade() error = %v", err)
 		}
+		if err := b.RegisterUnary("org.example.test", "Ping", func(ctx context.Context, call UnaryCall) error {
+			var in struct {
+				Message string `json:"message"`
+			}
+			if err := call.Decode(&in); err != nil {
+				return err
+			}
+			return call.Reply(ctx, struct {
+				Message string `json:"message"`
+			}{Message: "pong:" + in.Message})
+		}); err != nil {
+			t.Fatalf("RegisterUnary() error = %v", err)
+		}
 	})
 	defer closeClientServer(t, client, done)
 
@@ -583,6 +641,18 @@ func TestConnClientUpgradeReplyErrorIsTerminal(t *testing.T) {
 	}
 	if remote.Name != "org.example.test.Failed" {
 		t.Fatalf("remote name = %q", remote.Name)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	var out struct {
+		Message string `json:"message"`
+	}
+	if err := client.Invoke(ctx, "org.example.test.Ping", map[string]string{"message": "after"}, &out); err != nil {
+		t.Fatalf("Invoke() after upgrade error = %v", err)
+	}
+	if out.Message != "pong:after" {
+		t.Fatalf("Invoke() after upgrade error message = %q", out.Message)
 	}
 }
 

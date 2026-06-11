@@ -152,7 +152,7 @@ func (s *Server) handleMessage(ctx context.Context, transport *framedTransport, 
 			_, err := call.Accept(ctx, nil)
 			return err == nil, err
 		}
-		return true, nil
+		return call.upgraded, nil
 	default:
 		return false, ErrProtocolViolation
 	}
@@ -161,7 +161,7 @@ func (s *Server) handleMessage(ctx context.Context, transport *framedTransport, 
 func (s *Server) callUnaryHandler(ctx context.Context, handler UnaryHandler, call *unaryRequest) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = s.recoverCallPanic(ctx, &call.baseRequest, recovered)
+			err = s.recoverCallPanic(recovered)
 		}
 	}()
 	return handler(ctx, call)
@@ -170,7 +170,7 @@ func (s *Server) callUnaryHandler(ctx context.Context, handler UnaryHandler, cal
 func (s *Server) callStreamHandler(ctx context.Context, handler StreamHandler, call *streamRequest) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = s.recoverCallPanic(ctx, &call.baseRequest, recovered)
+			err = s.recoverCallPanic(recovered)
 		}
 	}()
 	return handler(ctx, call)
@@ -179,17 +179,14 @@ func (s *Server) callStreamHandler(ctx context.Context, handler StreamHandler, c
 func (s *Server) callUpgradeHandler(ctx context.Context, handler UpgradeHandler, call *upgradeRequest) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = s.recoverCallPanic(ctx, &call.baseRequest, recovered)
+			err = s.recoverCallPanic(recovered)
 		}
 	}()
 	return handler(ctx, call)
 }
 
-func (s *Server) recoverCallPanic(ctx context.Context, call *baseRequest, recovered any) error {
+func (s *Server) recoverCallPanic(recovered any) error {
 	err := fmt.Errorf("varlink: handler panic: %v", recovered)
-	if !call.replied && !call.upgraded {
-		_ = call.ReplyError(ctx, serviceInternalError, nil)
-	}
 	return err
 }
 

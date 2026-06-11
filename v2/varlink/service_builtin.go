@@ -33,6 +33,4 @@ error MethodNotImplemented (method: string)
 
 # One of the passed parameters is invalid.
 error InvalidParameter (parameter: string)
-
-# The service encountered an unexpected internal error.
-error InternalError ()`
+`

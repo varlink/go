@@ -53,7 +53,7 @@ func (c *ConnClient) Invoke(ctx context.Context, method string, in any, out any)
 	}
 	if msg.Parameters != nil {
 		if err := codec.DecodeParameters(msg.Parameters, out); err != nil {
-			return c.fail(&ReplyError{Method: method, Err: err})
+			return &ReplyError{Method: method, Err: err}
 		}
 	}
 	return nil
