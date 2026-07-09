@@ -74,9 +74,11 @@ method Test08(client_id: string, map: [string]string) -> (set: [string]())
 
 method Test09(client_id: string, set: [string]()) -> (mytype: MyType)
 
+# @mode stream
 # returns more than one reply with "continues"
 method Test10(client_id: string, mytype: MyType) -> (string: string)
 
+# @mode oneway
 method Test11(
   client_id: string,
   last_more_replies: []string
