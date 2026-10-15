@@ -155,6 +155,28 @@ func (s *Service) Shutdown() error {
 
 func (s *Service) handleConnection(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
 	defer func() { s.mutex.Lock(); s.conncounter--; s.mutex.Unlock(); wg.Done() }()
+	s.serveConn(ctx, conn)
+}
+
+// ServeConn serves requests on conn, an already connected socket, until
+// the peer closes it, a request fails, or ctx is done, and then closes
+// conn.  It blocks until then.
+//
+// It is for connections the Service did not accept itself, such as one end
+// of a socket pair, or a socket handed over by another process.  File
+// descriptors can be passed if conn is a *net.UnixConn.  Requests on conn
+// are served by the interfaces registered with the Service, exactly as on
+// connections accepted by Listen, which ServeConn can be used with or
+// without.
+func (s *Service) ServeConn(ctx context.Context, conn net.Conn) {
+	s.mutex.Lock()
+	s.conncounter++
+	s.mutex.Unlock()
+	defer func() { s.mutex.Lock(); s.conncounter--; s.mutex.Unlock() }()
+	s.serveConn(ctx, conn)
+}
+
+func (s *Service) serveConn(ctx context.Context, conn net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ctxConn := ctxio.NewConn(conn)
